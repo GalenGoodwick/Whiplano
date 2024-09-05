@@ -1,0 +1,27 @@
+{
+    "name": "Number #0010",
+    "symbol": "NB",
+    "description": "Collection of ten numbers",
+    "image": "10.png",
+    "attributes": [
+        {
+            "trait_type": "Number",
+            "value": "10"
+        }
+    ],
+    "properties": {
+        "files": [
+            {
+                "uri": "10.png",
+                "type": "image/png"
+            }
+        ],
+        "category": "image",
+        "creators": [
+            {
+              "address": "CreatorWalletAddressHere",
+              "share": 100 
+            }
+        ]
+    }
+}
