@@ -226,7 +226,7 @@ class DatabaseManager:
             print(f"Error: {e}")
             return None
     
-    def add_transaction(self, transaction_number, trs_id, buyer, seller, buyer_id, seller_id, buyer_number, seller_number, amount, buyer_bank, seller_bank):
+    def add_transaction(self, transaction_number, trs_id, buyer_id, seller_id, amount, number):
         """
         Adds a new transaction record to the database.
 
@@ -237,15 +237,10 @@ class DatabaseManager:
         Parameters:
         - transaction_number (str): The unique identifier of the transaction.
         - trs_id (str): The unique identifier of the asset (token) involved in the transaction.
-        - buyer (str): The name of the buyer.
-        - seller (str): The name of the seller.
         - buyer_id (int): The unique identifier of the buyer.
         - seller_id (int): The unique identifier of the seller.
-        - buyer_number (str): The account number of the buyer.
-        - seller_number (str): The account number of the seller.
         - amount (float): The amount of the transaction.
-        - buyer_bank (str): The name of the buyer's bank.
-        - seller_bank (str): The name of the seller's bank.
+        - number (int): The quantity of assets (tokens) involved in the transaction.
 
         Returns:
         - None
@@ -254,25 +249,13 @@ class DatabaseManager:
             print('No Database Connection')
         try:
             cursor = self.connection.cursor()
-            query = f"INSERT INTO transactions (transaction_number,trs_id,buyer,seller,buyer_id,seller_id,buyer_number,seller_number,amount,buyer_bank,seller_bank) VALUES (%s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-            values = (transaction_number,trs_id,buyer,seller,buyer,buyer_id,seller_id,buyer_number,seller_number,amount,buyer_bank,seller_bank)
+            query = f"INSERT INTO transactions (transaction_number,trs_id,buyer_id,seller_id,amount,number) VALUES (%s, %s,%s,%s,%s)"
+            values = (transaction_number, trs_id, buyer_id, seller_id, amount, number)
             cursor.execute(query, values)
             self.connection.commit()
             print(f"Transaction {transaction_number} added successfully")
         except Error as e:
             print(f"Error: {e}")
-        if not self.connection:
-            print('No Database Connection')
-        try:
-            cursor = self.connection.cursor()
-            query = f"INSERT INTO transactions (transaction_number,trs_id,buyer,seller,buyer_id,seller_id,buyer_number,seller_number,amount,buyer_bank,seller_bank) VALUES (%s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-            values = (transaction_number,trs_id,buyer,seller,buyer,buyer_id,seller_id,buyer_number,seller_number,amount,buyer_bank,seller_bank)
-            cursor.execute(query, values)
-            self.connection.commit()
-            print(f"Transaction {transaction_number} added successfully")
-        except Error as e:
-            print(f"Error: {e}")
-    
             
     def transfer_asset(self, user_id, trs_id):
         """
@@ -322,4 +305,37 @@ class DatabaseManager:
         if self.connection and self.connection.is_connected():
             self.connection.close()
             print("Database connection closed")
+            
+    def add_trs(self,number, mint_address, collection_name, token_account_address,creator_id):
+        """
+        Adds a new token to the database.
 
+        This function connects to the database, checks if a connection is available, and then inserts a new token record
+        into the 'collections' table. If the connection is not available, it prints a message indicating the lack of a
+        database connection.
+
+        Parameters:
+    
+        - mint_address (str): The address of the mint that created the token.
+        - collection_name (str): The name of the collection to which the token belongs.
+        - token_account_address (str): The address of the token account associated with the token.
+        - creator_id (int): The unique identifier of the creator of the token.
+        Returns:
+        - None
+        """
+        if not self.connection:
+            print("No database connection")
+            return
+        try:
+            cursor = self.connection.cursor()
+            for i in range(number):
+                trs_id = uuid.uuid4().int
+                query = f"INSERT INTO collections (trs_id, collection_name, mint_address, token_account_address,creator_id) VALUES (%s, %s, %s, %s,%s)"
+                values =  (str(trs_id), collection_name, str(mint_address), str(token_account_address),str(creator_id))
+                cursor.execute(query, values)
+                self.connection.commit()
+                print(f"Token {trs_id} ; {str(i+1)} of collection {collection_name} added successfully")
+        except Error as e:
+            print(f"Error: {e}")
+
+    

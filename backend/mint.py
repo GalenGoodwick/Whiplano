@@ -3,8 +3,20 @@ from solana.rpc.api import Client
 import json
 import os
 from PIL import Image
-
+import time
+import shutil
+from database import DatabaseManager
+from transaction import get_token_account_address
+import asyncio 
+from solders.pubkey import Pubkey
+database = DatabaseManager(
+    host='localhost',
+    user='root',
+    password='new_password',
+    database ='whiplano'
+)
 central_key =  "9QVeLdhziTQBFSTNWQxbzhwzQYgmcH4vT8GPsWqDBQFj" 
+
 # The wallet it is to be minted to, in this case the central wallet. 
 class NFTMinter:
     def __init__(self, central_key):
@@ -108,8 +120,10 @@ class NFTMinter:
         try:
             result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             print(result.stdout)
+            return result.stdout
         except subprocess.CalledProcessError as e:
             print("Error executing command:", e)
+            
         
    
     def edit_config(self,collection_symbol, central_key, number):
@@ -120,7 +134,7 @@ class NFTMinter:
         collection_symbol (str): The symbol of the collection to be minted.
         central_key (str): The public key of the wallet to which the NFTs will be minted.
         number (int): The number of NFTs to be minted.
-
+s
         Returns:
         None
 
@@ -157,7 +171,7 @@ class NFTMinter:
 
         return
 
-    def mint_nfts(self,collection_name, collection_description, collection_symbol, number, uri): 
+    def mint_nfts(self,collection_name, collection_description, collection_symbol, number, uri,creator_id): 
         """
         This function automates the process of minting NFTs on the Solana blockchain.
         It performs various tasks such as generating metadata, duplicating images, editing configuration,
@@ -190,7 +204,7 @@ class NFTMinter:
             print("Removed stagnant cache")
         except:
             print("No cache to remove")
-
+        
         print("Generating metadata")
         self.metadata_generator(collection_name,collection_description,collection_symbol,uri,number)
         print("Generating images")
@@ -204,10 +218,35 @@ class NFTMinter:
         print("Verifying")
         self.run_command("sugar verify")
         print("Minting")
-        for i in range(number):
-            self.run_command("sugar mint")
-            print("Minted ", i+1, " NFT's")
+        mint_addresses = []
+    
+        e = self.run_command("sugar mint")
+        mint_split = e.split()
+        
+        for l in mint_split:
+            if l == 'Mint:':
+                mint_address = mint_split[mint_split.index(l)+1]
+                mint_address = Pubkey.from_string(mint_address)
+                mint_addresses.append(mint_address)
+                break
+        
+        print(mint_address)
+        print("Minted the NFT")
+        time.sleep(5)
+    
+        token_account_address = asyncio.run(get_token_account_address(mint_addresses[0]))
+        print("Token account address: ",token_account_address)
+        print(type(token_account_address))
+        database.add_trs(number,mint_addresses[0],collection_name,token_account_address,creator_id)
+        
+        
         print("Cleaning up")
-        os.remove('./cache.json')
-        os.rmdir(f'./collections/{collection_name}')
+        try:
+            os.remove('./cache.json')
+            shutil.rmtree(f'./collections/{collection_name}')
+        except Exception as e:
+            print(e)
 
+
+e = NFTMinter("9QVeLdhziTQBFSTNWQxbzhwzQYgmcH4vT8GPsWqDBQFj")
+e.mint_nfts("TestingDatbase","title","title",100,'./collections/assets/9.png',1)

@@ -1,7 +1,7 @@
 {
     "tokenStandard": "nft",
-    "number": 15,
-    "symbol": "TST",
+    "number": 100,
+    "symbol": "title",
     "sellerFeeBasisPoints": 500,
     "isMutable": true,
     "isSequential": false,

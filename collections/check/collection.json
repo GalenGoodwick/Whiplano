@@ -1,0 +1,15 @@
+{
+    "name": "check",
+    "symbol": "check",
+    "description": "check",
+    "image": "./collections/assets/8.png",
+    "attributes": [],
+    "properties": {
+        "files": [
+            {
+                "uri": "./collections/assets/8.png",
+                "type": "image/png"
+            }
+        ]
+    }
+}
