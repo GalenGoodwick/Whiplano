@@ -5,17 +5,27 @@ import os
 from PIL import Image
 import time
 import shutil
-from database import DatabaseManager
-from transaction import get_token_account_address
+try:
+    from backend.database import DatabaseManager
+    from backend.transaction import get_token_account_address
+except:
+    from database import DatabaseManager
+    from transaction import get_token_account_address
 import asyncio 
 from solders.pubkey import Pubkey
+from dotenv import load_dotenv
+
+load_dotenv()
+
+database_password = os.getenv("DATABASE_PASSWORD")
+central_key = os.getenv('CENTRAL_WALLET_PUBKEY')
 database = DatabaseManager(
     host='localhost',
     user='root',
     password='new_password',
     database ='whiplano'
 )
-central_key =  "9QVeLdhziTQBFSTNWQxbzhwzQYgmcH4vT8GPsWqDBQFj" 
+
 
 # The wallet it is to be minted to, in this case the central wallet. 
 class NFTMinter:
@@ -47,7 +57,8 @@ class NFTMinter:
                 "files": [{
                     "uri": image_path_uri,
                     "type": "image/png"
-                }]
+                }],
+                "category": "image"
             }
         }
         path_beginner = './collections/'
@@ -99,10 +110,10 @@ class NFTMinter:
         """
         original_image = Image.open(uri)
         original_image.save(f'./collections/{collection_name}/collection.png')
-        
-        for i in range(number):
+        original_image.save(f'./collections/{collection_name}/0.png')
+        '''for i in range(number):
             file_name = f'./collections/{collection_name}/{i}.png'
-            original_image.save(file_name)
+            original_image.save(file_name)'''
 
     def run_command(self,command):
         """
@@ -206,11 +217,11 @@ s
             print("No cache to remove")
         
         print("Generating metadata")
-        self.metadata_generator(collection_name,collection_description,collection_symbol,uri,number)
+        self.metadata_generator(collection_name,collection_description,collection_symbol,uri,1)
         print("Generating images")
-        self.image_duplicator(uri,number,collection_name)
+        self.image_duplicator(uri,1,collection_name)
         print("Editing config")
-        self.edit_config(collection_symbol,central_key,number)
+        self.edit_config(collection_symbol,central_key,1)
         print("Uploading to central")
         self.run_command(f'sugar upload -k ./central_wallet.json ./collections/{collection_name}')
         print("Deploying")
@@ -248,5 +259,18 @@ s
             print(e)
 
 
-e = NFTMinter("9QVeLdhziTQBFSTNWQxbzhwzQYgmcH4vT8GPsWqDBQFj")
-e.mint_nfts("TestingDatbase","title","title",100,'./collections/assets/9.png',1)
+def mint_nft(data):
+    
+    minter = NFTMinter(central_key)
+    minter.mint_nfts(
+        data['collection_name'],
+        data['collection_description'],
+        data['collection_symbol'],
+        data['number'],
+        data['uri'],
+        data['creator_id']
+    )
+    
+
+#e = NFTMinter("9QVeLdhziTQBFSTNWQxbzhwzQYgmcH4vT8GPsWqDBQFj")
+#e.mint_nfts("TestingDatbase","tiele","title",100,'./collections/assets/9.png',10)

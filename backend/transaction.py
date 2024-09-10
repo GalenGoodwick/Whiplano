@@ -50,12 +50,14 @@ class TransactionCreator:
         self.transaction_details = transaction_details
     
     async def memo_creator(self):
+        
         text = bytes(self.transaction_details,encoding ='utf-8')
         params = MemoParams(
             program_id = MEMO_PROGRAM_ID,
             message= text,
             signer = central_wallet,
         )
+        
         return create_memo(params)
           
     async def send_transaction(self):
@@ -88,7 +90,7 @@ class TransactionCreator:
         transaction_number_3 = self.transaction_details['transaction_number_3']
 
         amount = self.transaction_details['amount']
-
+        
             
     
         return 

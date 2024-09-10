@@ -7,6 +7,7 @@ import os
 import time
 import requests
 from dotenv import load_dotenv
+from requests.auth import HTTPBasicAuth
 import base64
 load_dotenv()
 
@@ -14,13 +15,29 @@ PAYPAL_API_URL = 'https://api-m.sandbox.paypal.com/v1/payments/payment'
 PAYPAL_CLIENT_ID = os.getenv('PAYPAL_CLIENT_ID')
 PAYPAL_CLIENT_SECRET = os.getenv('PAYPAL_CLIENT_SECRET')
 
+def get_access_token():
+    url = "https://api-m.sandbox.paypal.com/v1/oauth2/token"
+
+    headers = {
+    "Accept": "application/json",
+    "Accept-Language": "en_US"
+    }
+    payload = {
+    "grant_type": "client_credentials"
+    }
+    response = requests.post(url, headers=headers, data=payload, auth=HTTPBasicAuth(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET))
+
+    if response.status_code == 200:
+        access_token = response.json().get('access_token')
+        
+        return access_token
 
 class PayPal:
     def __init__(self):
         self.client_id = PAYPAL_CLIENT_ID
         self.client_secret = PAYPAL_CLIENT_SECRET
 
-    async def create_payment(self):
+    async def create_payment(self,amount,return_url,cancel_url,description):
         async with aiohttp.ClientSession() as session:
             auth = aiohttp.BasicAuth(self.client_id, self.client_secret)
             headers = {
@@ -30,18 +47,18 @@ class PayPal:
             data = {
                 "intent": "sale",
                 "redirect_urls": {
-                    "return_url": "http://localhost:8080/execute",
-                    "cancel_url": "http://localhost:8080/cancel"
+                    "return_url": return_url,
+                    "cancel_url": cancel_url
                 },
                 "payer": {
                     "payment_method": "paypal"
                 },
                 "transactions": [{
                     "amount": {
-                        "total": "10.00",
+                        "total": amount,
                         "currency": "USD"
                     },
-                    "description": "Payment description"
+                    "description": description
                 }]
             }
             async with session.post(PAYPAL_API_URL, auth=auth, headers=headers, json=data) as response:
@@ -67,28 +84,7 @@ class PayPalPayouts:
     def __init__(self):
         
         self.payout_url = 'https://api.sandbox.paypal.com/v1/payments/payouts'
-    async def get_access_token(self):
-      
-      url = "https://api.sandbox.paypal.com/v1/oauth2/token"
-      
-      payload = 'grant_type=client_credentials'
-      
-      encoded_auth = base64.b64encode((PAYPAL_CLIENT_ID + ':' + PAYPAL_CLIENT_SECRET).encode())
-      
-      headers = { 
-        'Authorization': f'Basic {encoded_auth.decode()}',
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-      async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, data=payload) as response:
-          if response.status == 200:
-            response_data = await response.json()
-            access_token = response_data['access_token']
-            self.access_token = access_token
-            return access_token
-          else:
-            raise Exception(f'Failed to get access token :{response.status}, {await response.text()}')
-      
+    
     async def send_payout(self,access_token, sender_batch_id, recipient_email, amount, currency="USD", note="Payout"):
         payout_data = {
             "sender_batch_header": {
@@ -129,7 +125,7 @@ class PayPalPayouts:
 
 async def handle_payout(request):
     paypal_payouts = PayPalPayouts()
-    access = await paypal_payouts.get_access_token()
+    access = get_access_token()
     response = await paypal_payouts.send_payout(
         access,
         sender_batch_id='batch_id_1234',
@@ -164,6 +160,8 @@ async def handle_get_kyc(request):
         return web.json_response(kyc_response)
     else:
         return web.Response(text="User ID missing", status=400)
+
+
 def payment_webapp():
   app = web.Application()
   app.router.add_get('/create', handle_create)
@@ -171,9 +169,35 @@ def payment_webapp():
   #app.router.add_get('/get_kyc', handle_get_kyc)  
   app.router.add_get('/payout', handle_payout)
   return app
-
-
+'''
 if __name__ == "__main__":
   app = payment_webapp()  
+  
   web.run_app(app, port=8080)
+  '''
+  
+async def create_payment(data):
+    paypal = PayPal()
+    resp =  await paypal.create_payment(data['amount'], data['return_url'], data['cancel_url'], data['description'])
+    print(resp)
+    return resp
+
+async def execute_payment(payment_id, payer_id):
+    paypal  = PayPal()
+    resp = await paypal.execute_payment(payment_id, payer_id)
+    print(resp)
+    return resp 
+
+async def payout(data):
+    paypal = PayPalPayouts()
+    access_token = get_access_token()
+    response = await paypal.send_payout(
+        access_token,
+        sender_batch_id=data['batch_id'],
+        recipient_email=data['recipient_email'],
+        amount=data['amount'],
+        currency=data['currency'],
+        note=data['note'])
+    print("Payout sent. ")
+    return response
 

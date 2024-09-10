@@ -1,8 +1,14 @@
 {
-  "name": "Numbers #8",
+  "name": "Numbers #10",
   "symbol": "NUMBERS",
-  "image": "8.png",  "properties": {
-    "files": [{ "uri": "8.png", "type": "image/png" }],
+  "image": "10.png",
+  "properties": {
+    "files": [
+      {
+        "uri": "10.png",
+        "type": "image/png"
+      }
+    ],
     "category": "image",
     "creators": [
       {
@@ -13,5 +19,10 @@
   },
   "description": "A set of test NFTs for the Solana blockchain",
   "seller_fee_basis_points": 500,
-  "attributes": [{ "trait_type": "Number", "value": "8" }]
+  "attributes": [
+    {
+      "trait_type": "Number",
+      "value": "10"
+    }
+  ]
 }
