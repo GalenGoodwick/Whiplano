@@ -91,6 +91,32 @@ class DatabaseManager:
         finally:
             cursor.close()
 
+    def get_user_by_email(self, email):
+        """
+        Retrieves a user's details from the database based on the provided email address.
+
+        Parameters:
+        - email (str): The email address of the user.
+
+        Returns:
+        - dict: A dictionary containing the user's details if the user exists in the database.
+                 If the user does not exist or there is an error, returns None.
+        """
+        if not self.connection:
+            print("No Database Connection")
+            return
+        try:
+            cursor = self.connection.cursor(dictionary=True)
+            query = "SELECT * FROM users WHERE email = %s"
+            cursor.execute(query, (email,))
+            result = cursor.fetchone()
+            return result
+        except Error as e:
+            print(f"Error: {e}")
+            return None
+        finally:
+            cursor.close()
+            
     def update_user(self, user_id, username=None, email=None, password_hash=None):
         """
         Updates a user's details in the database.
@@ -168,7 +194,7 @@ class DatabaseManager:
         finally:
             cursor.close()
 
-    def add_asset(self, user_id, trs_id, collection_id):
+    def add_asset(self, user_id, trs_id, collection_id,creator):
         """
         Adds a new asset (token) to the user's wallet in the database.
 
@@ -188,10 +214,9 @@ class DatabaseManager:
             print("No database connection")
             return
         try:
-            wallet_id = user_id
             cursor = self.connection.cursor()
-            query = f"INSERT INTO trs (wallet_id,user_id,trs_id,collection_id) VALUES (%s, %s,%s,%s)"
-            values = (wallet_id, user_id, trs_id, collection_id)
+            query = f"INSERT INTO trs (user_id,trs_id,collection_id,creator) VALUES (%s, %s,%s,%s)"
+            values = (user_id, trs_id, collection_id,creator)
             cursor.execute(query, values)
             self.connection.commit()
             print(f"Token {trs_id} added to {user_id}'s wallet.")
@@ -285,11 +310,6 @@ class DatabaseManager:
     
     
     def close_connection(self):
-        if self.connection and self.connection.is_connected():
-            self.connection.close()
-            print("Database connection closed")
-
-    def close_connection(self):
         """
         Closes the database connection if it is currently open.
 
@@ -335,7 +355,38 @@ class DatabaseManager:
                 cursor.execute(query, values)
                 self.connection.commit()
                 print(f"Token {trs_id} ; {str(i+1)} of collection {collection_name} added successfully")
+                self.add_asset(creator_id, trs_id, collection_name,creator_id)
         except Error as e:
             print(f"Error: {e}")
 
+    def add_paypal_transaction(self, transaction_number, buyer_id, seller_id, amount, transaction_date):
+        """
+        Adds a new PayPal transaction record to the database.
+
+        This function connects to the database, checks if a connection is available, and then inserts a new PayPal transaction
+        record into the 'paypal_transactions' table. If the connection is not available, it prints a message indicating the lack of a
+        database connection.
+
+        Parameters:
+        - transaction_number (str): The unique identifier of the PayPal transaction.
+        - buyer_id (str): The unique identifier of the buyer.
+        - seller_id (str): The unique identifier of the seller.
+        - amount (float): The amount of the transaction.
+        - transaction_date (datetime): The date and time of the transaction.
+
+        Returns:
+        - None
+        """
+        if not self.connection:
+            print("No database connection")
+            return
+        try:
+            cursor = self.connection.cursor()
+            query = f"INSERT INTO paypal_transactions (transaction_id, buyer_id, seller_id, amount) VALUES (%s,%s,%s,%s)"
+            values = (str(transaction_number), str(buyer_id), str(seller_id), amount)
+
+            cursor.execute(query, values)
+            print(f"Added PayPal transaction with transaction number {transaction_number}")
+        except Error as e:
+            print(f"Error: {e}")
     

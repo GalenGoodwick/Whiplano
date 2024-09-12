@@ -9,15 +9,15 @@ from spl.token.instructions import transfer,TransferParams
 from spl.memo.instructions import create_memo,MemoParams
 from spl.memo.constants import MEMO_PROGRAM_ID
 import json
-
+import os 
+import dotenv
+dotenv.load_dotenv()
 
 client = AsyncClient("https://api.devnet.solana.com")
 
-with open('./central_wallet.json') as file:
-    secret_key = json.load(file)
 
-central_wallet = Pubkey.from_string("9QVeLdhziTQBFSTNWQxbzhwzQYgmcH4vT8GPsWqDBQFj")
-central_wallet_keypair = Keypair.from_bytes(secret_key)
+central_wallet = Pubkey.from_string(os.getenv('CENTRAL_WALLET_PUBKEY'))
+central_wallet_keypair = Keypair.from_bytes(json.loads(os.getenv('CENTRAL_WALLET_KEY').encode()))
 
 
 async def get_token_account_address(mint_address):
@@ -45,13 +45,13 @@ async def get_token_account_address(mint_address):
         print(f"Error: {e}")
 
 class TransactionCreator:
-    def __init__(self, token_account_address, transaction_details):
+    def __init__(self, token_account_address, transaction_number):
         self.token_account_address = token_account_address
-        self.transaction_details = transaction_details
+        self.transaction_number = transaction_number
     
     async def memo_creator(self):
         
-        text = bytes(self.transaction_details,encoding ='utf-8')
+        text = bytes(self.transaction_number,encoding ='utf-8')
         params = MemoParams(
             program_id = MEMO_PROGRAM_ID,
             message= text,
@@ -79,23 +79,12 @@ class TransactionCreator:
         
         print(F"Transaction hash: {response}")
     
-    async def transaction(self):
-        payment_recieved = True #Wait for confirmation.
-        payment_sent = True #Wait for confirmation.
-        royalty_sent = True #Wait for confirmation.
-        await self.send_transaction()
 
-        transaction_number_1 = self.transaction_details['transaction_number_1']
-        transaction_number_2 = self.transaction_details['transaction_number_2']
-        transaction_number_3 = self.transaction_details['transaction_number_3']
-
-        amount = self.transaction_details['amount']
-        
-            
+async def transaction(transaction_number):
+    e = TransactionCreator(await get_token_account_address(),transaction_number)
+    await e.send_transaction()
+    return {"message": "Created and signed transaction successfully"}
     
-        return 
-    
-
  
 
 

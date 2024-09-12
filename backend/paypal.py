@@ -9,11 +9,19 @@ import requests
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
 import base64
+from backend.database import DatabaseManager
 load_dotenv()
 
 PAYPAL_API_URL = 'https://api-m.sandbox.paypal.com/v1/payments/payment'
 PAYPAL_CLIENT_ID = os.getenv('PAYPAL_CLIENT_ID')
 PAYPAL_CLIENT_SECRET = os.getenv('PAYPAL_CLIENT_SECRET')
+
+database = DatabaseManager(
+    host='localhost',
+    user='root',
+    password='new_password',
+    database ='whiplano'
+)
 
 def get_access_token():
     url = "https://api-m.sandbox.paypal.com/v1/oauth2/token"
@@ -122,74 +130,23 @@ class PayPalPayouts:
                     return response_data
 
 
-
-async def handle_payout(request):
-    paypal_payouts = PayPalPayouts()
-    access = get_access_token()
-    response = await paypal_payouts.send_payout(
-        access,
-        sender_batch_id='batch_id_1234',
-        recipient_email='sb-pi4yd32634479@personal.example.com',
-        amount='100.00'
-    )
-    print(response)
-async def handle_execute(request):
-    payment_id = request.query.get('paymentId')
-    payer_id = request.query.get('PayerID')
-
-    if payment_id and payer_id:
-        paypal = PayPal()
-        payment_response = await paypal.execute_payment(payment_id, payer_id)
-        return web.json_response(payment_response)
-    else:
-        return web.Response(text="Payment ID or Payer ID missing", status=400)
-
-async def handle_create(request):
-    paypal = PayPal()
-    payment_response = await paypal.create_payment()
-    payment_id = payment_response.get('id')
-    approval_url = next((link['href'] for link in payment_response['links'] if link['rel'] == 'approval_url'), None)
-    return web.json_response({'payment_id': payment_id, 'approval_url': approval_url})
-
-async def handle_get_kyc(request):
-    user_id = request.query.get('user_id')
-    
-    if user_id:
-        paypal_kyc = PayPal()
-        kyc_response = await paypal_kyc.get_kyc_information(user_id)
-        return web.json_response(kyc_response)
-    else:
-        return web.Response(text="User ID missing", status=400)
-
-
-def payment_webapp():
-  app = web.Application()
-  app.router.add_get('/create', handle_create)
-  app.router.add_get('/execute', handle_execute)
-  #app.router.add_get('/get_kyc', handle_get_kyc)  
-  app.router.add_get('/payout', handle_payout)
-  return app
-'''
-if __name__ == "__main__":
-  app = payment_webapp()  
-  
-  web.run_app(app, port=8080)
-  '''
-  
 async def create_payment(data):
     paypal = PayPal()
     resp =  await paypal.create_payment(data['amount'], data['return_url'], data['cancel_url'], data['description'])
-    print(resp)
+    
     return resp
 
 async def execute_payment(payment_id, payer_id):
     paypal  = PayPal()
     resp = await paypal.execute_payment(payment_id, payer_id)
-    print(resp)
+    transaction_number = resp['transacti']
+    amount = resp['amount']
+    
     return resp 
 
 async def payout(data):
     paypal = PayPalPayouts()
+    
     access_token = get_access_token()
     response = await paypal.send_payout(
         access_token,
@@ -198,6 +155,7 @@ async def payout(data):
         amount=data['amount'],
         currency=data['currency'],
         note=data['note'])
+    
     print("Payout sent. ")
     return response
 

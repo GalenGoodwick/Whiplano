@@ -5,13 +5,16 @@ import os
 from PIL import Image
 import time
 import shutil
-try:
-    from backend.database import DatabaseManager
-    from backend.transaction import get_token_account_address
-except:
+from backend.database import DatabaseManager
+from backend.transaction import get_token_account_address
+    
+'''except Exception as e:
+   
     from database import DatabaseManager
-    from transaction import get_token_account_address
-import asyncio 
+    from transaction import get_token_account_address'''
+    
+import asyncio
+ 
 from solders.pubkey import Pubkey
 from dotenv import load_dotenv
 
