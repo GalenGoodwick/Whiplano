@@ -1,0 +1,6 @@
+node_modules
+*.log
+central_wallet.json
+*.env
+*temp.py
+

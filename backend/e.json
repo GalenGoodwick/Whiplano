@@ -1,0 +1,8 @@
+{
+    "collection_name": "MyNFTCollection",
+    "collection_description": "A collection of unique NFTs",
+    "collection_symbol": "NFT",
+    "number": 100,
+    "uri": "./collections/assets/9.png",
+    "creator_id": 12345
+  }
