@@ -3,6 +3,13 @@ from backend import database, mint, paypal, transaction, utils
 from typing import Optional
 from pydantic import BaseModel,Field
 from datetime import datetime, timedelta
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import RedirectResponse
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from dotenv import load_dotenv
+import os  
+
 from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES
 app = FastAPI()
 
@@ -12,6 +19,12 @@ database_client = database.DatabaseManager(
     password='new_password',
     database ='whiplano'
 )
+
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+REDIRECT_URI = "http://localhost:8000/callback/google"
+
+
 #BASE MODELS
 
 class NFTData(BaseModel):
@@ -51,6 +64,52 @@ async def login(email: str = Form(...), password: str = Form(...)):
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+@app.get("/login/google")
+def login_with_google():
+    """
+    Redirects the user to the Google OAuth2 authorization page for login.
+
+    This function constructs a URL to the Google OAuth2 authorization page with the necessary parameters
+    to initiate the login process. The function then returns a RedirectResponse object to redirect the user
+    to the constructed URL.
+
+    Parameters:
+    None
+
+    Returns:
+    RedirectResponse: A FastAPI response object that redirects the user to the Google OAuth2 authorization page.
+    """
+    return RedirectResponse(f"https://accounts.google.com/o/oauth2/auth?client_id={GOOGLE_CLIENT_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=openid email")
+
+
+@app.get("/callback/google")
+def google_callback(request: Request):
+    """
+    This function handles the callback from Google OAuth2 authorization.
+    It exchanges the authorization code for an access token and retrieves the user's email.
+
+    Parameters:
+    request (Request): The FastAPI Request object containing the query parameters.
+        - code: The authorization code obtained from Google OAuth2.
+
+    Returns:
+    dict: A dictionary containing the user's email.
+        - email: The email of the authenticated user.
+    """
+    code = request.query_params["code"]
+    token_url = "https://oauth2.googleapis.com/token"
+    payload = {
+        'client_id': GOOGLE_CLIENT_ID,
+        'client_secret': GOOGLE_CLIENT_SECRET,
+        'code': code,
+        'grant_type': 'authorization_code',
+        'redirect_uri': REDIRECT_URI
+    }
+    response = google_requests.post(token_url, data=payload)
+    idinfo = id_token.verify_oauth2_token(response.json()["id_token"], google_requests.Request(), GOOGLE_CLIENT_ID)
+
+    return {"email": idinfo['email']}
+
 @app.get("/users/me", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     """
@@ -68,13 +127,6 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     """
     return current_user
 
-@app.post("/mint")
-async def mint_nft(data : NFTData):
-    try:
-        mint.mint_nft(data)
-        return {"message": "NFT minted successfully."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 @app.post("/mint")
 async def mint_nft(data : NFTData):
     """
