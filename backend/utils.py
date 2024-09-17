@@ -39,13 +39,6 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: str
 
-
-
-# Function to hash a password
-def hash_password(password):
-    salt = bcrypt.gensalt()
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed_password
 def hash_password(password: str) -> bytes:
     """
     Hash a password using bcrypt.
@@ -66,7 +59,7 @@ def hash_password(password: str) -> bytes:
 
 # Function to check if the password matches the hashed password
 
-def verify_password(password: str, hashed_password: bytes) -> bool:
+def verify_password(password: str, hashed_password: str) -> bool:
     """
     Verify if a given password matches the hashed password.
 
@@ -80,7 +73,7 @@ def verify_password(password: str, hashed_password: bytes) -> bool:
     Returns:
     bool: True if the provided password matches the hashed password, False otherwise.
     """
-    return bcrypt.checkpw(password.encode('utf-8'), hashed_password)
+    return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def create_auth_token(data: dict, expires_delta: Union[timedelta, None] = None) -> str:
     """
@@ -131,7 +124,7 @@ def verify_token(token: str) -> dict:
         return {}
 
 
-def authenticate_user(email: str, password: str) -> Union[User, None]:
+async def authenticate_user(email: str, password: str) -> Union[User, None]:
     """Authenticate a user by verifying their email and password.
 
     This function retrieves a user from the database based on the provided email.
@@ -145,7 +138,7 @@ def authenticate_user(email: str, password: str) -> Union[User, None]:
     Returns:
     Union[User, None]: The user object if the email and password are valid, otherwise None.
     """
-    user = database_client.get_user_by_email(email)
+    user = await database_client.get_user_by_email(email)
     if user and verify_password(password, user["password_hash"]):
         return User(**user)
     return None
@@ -173,19 +166,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
     payload = verify_token(token)
     if not payload:
         raise credentials_exception
+    
     email = payload.get("sub")
+    
     if email is None:
         raise credentials_exception
-    user = database_client.get_user(email)
+    user = await database_client.get_user_by_email(email)
     user = {
-        "user_id":user['user_id'],
+        "id":user['user_id'],
         "username": user['username'],
         "email": user['email']     
     }
-
+    print(user)
     if user is None:
 
         raise credentials_exception

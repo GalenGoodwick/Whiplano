@@ -89,7 +89,7 @@ class NFTMinter:
             }
         }
 
-        for i in range(number):
+        for i in range(1):
             metadata = metadata_template.copy()
             metadata['name'] = collection_name + str(i)
             metadata["attributes"][0]["value"] = str(i)
@@ -185,7 +185,7 @@ s
 
         return
 
-    def mint_nfts(self,collection_name, collection_description, collection_symbol, number, uri,creator_id): 
+    async def mint_nfts(self,collection_name, collection_description, collection_symbol, number, uri,creator_id): 
         """
         This function automates the process of minting NFTs on the Solana blockchain.
         It performs various tasks such as generating metadata, duplicating images, editing configuration,
@@ -248,10 +248,10 @@ s
         print("Minted the NFT")
         time.sleep(5)
     
-        token_account_address = asyncio.run(get_token_account_address(mint_addresses[0]))
+        token_account_address = await (get_token_account_address(mint_addresses[0]))
         print("Token account address: ",token_account_address)
         print(type(token_account_address))
-        database.add_trs(number,mint_addresses[0],collection_name,token_account_address,creator_id)
+        await database.add_trs(number,mint_addresses[0],collection_name,token_account_address,creator_id)
         
         
         print("Cleaning up")
@@ -262,10 +262,10 @@ s
             print(e)
 
 
-def mint_nft(data):
+async def mint_nft(data):
     
     minter = NFTMinter(central_key)
-    minter.mint_nfts(
+    await minter.mint_nfts(
         data['collection_name'],
         data['collection_description'],
         data['collection_symbol'],

@@ -89,11 +89,6 @@ async def transaction(transaction_number):
 
 
 
-
-async def main():
-    e = TransactionCreator(Pubkey.from_string('EhKdZDMYs4PnYurXaz1fCYfkpnDxdzEZBc2SNEF8B8HS'),'hello')
-    await e.create_transaction()
-    await client.close()
     
 
 

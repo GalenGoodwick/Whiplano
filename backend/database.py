@@ -1,6 +1,10 @@
 import mysql.connector
 from mysql.connector import Error
 import uuid
+from backend.logging_config import logging_config  # Import the configuration file
+import logging.config
+logging.config.dictConfig(logging_config)
+logger = logging.getLogger("database")
 
 class DatabaseManager:
     def __init__(self, host, user, password, database):
@@ -28,12 +32,12 @@ class DatabaseManager:
                 database=database
             )
             if self.connection.is_connected():
-                print("Successfully connected to the database")
+                logger.info("Successfully connected to the database")
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
             self.connection = None
 
-    def add_user(self, username, email, password_hash):
+    async def add_user(self, username, email, password_hash):
         """
         Adds a new user to the database.
 
@@ -50,22 +54,25 @@ class DatabaseManager:
         - None
         """
         if not self.connection:
-            print("No database connection")
+            logger.critical("No database connection")
             return
         try:
             cursor = self.connection.cursor()
-            user_id = uuid.uuid4()
-            query = "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)"
+            user_id = str(uuid.uuid4())
+            
+            query = "INSERT INTO users (user_id,username, email, password_hash) VALUES (%s, %s, %s,%s)"
+            
             values = (user_id,username, email, password_hash)
             cursor.execute(query, values)
             self.connection.commit()
-            print(f"User {username} with id {user_id} added successfully")
+            logger.info(f"User {username} with id {user_id} added successfully")
+            
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
         finally:
             cursor.close()
 
-    def get_user(self, user_id):
+    async def get_user(self, user_id):
         """
         Retrieves a user's details from the database based on the provided user ID.
 
@@ -77,7 +84,7 @@ class DatabaseManager:
                  If the user does not exist or there is an error, returns None.
         """
         if not self.connection:
-            print("No database connection")
+            logger.critical("No database connection")
             return None
         try:
             cursor = self.connection.cursor(dictionary=True)
@@ -86,12 +93,13 @@ class DatabaseManager:
             result = cursor.fetchone()
             return result
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return None
         finally:
             cursor.close()
-
-    def get_user_by_email(self, email):
+    
+    
+    async def get_user_by_email(self, email):
         """
         Retrieves a user's details from the database based on the provided email address.
 
@@ -103,7 +111,7 @@ class DatabaseManager:
                  If the user does not exist or there is an error, returns None.
         """
         if not self.connection:
-            print("No Database Connection")
+            logger.critical("No Database Connection")
             return
         try:
             cursor = self.connection.cursor(dictionary=True)
@@ -112,12 +120,12 @@ class DatabaseManager:
             result = cursor.fetchone()
             return result
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return None
         finally:
             cursor.close()
             
-    def update_user(self, user_id, username=None, email=None, password_hash=None):
+    async def update_user(self, user_id, username=None, email=None, password_hash=None):
         """
         Updates a user's details in the database.
 
@@ -136,7 +144,7 @@ class DatabaseManager:
         - None
         """
         if not self.connection:
-            print("No database connection")
+            logger.critical("No database connection")
             return
         try:
             cursor = self.connection.cursor()
@@ -152,19 +160,19 @@ class DatabaseManager:
                 updates.append("password_hash = %s")
                 values.append(password_hash)
             if not updates:
-                print("No updates provided")
+                logger.warn("No updates provided")
                 return
             query = f"UPDATE users SET {', '.join(updates)} WHERE user_id = %s"
             values.append(user_id)
             cursor.execute(query, tuple(values))
             self.connection.commit()
-            print("User updated successfully")
+            logger.info("User updated successfully")
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
         finally:
             cursor.close()
 
-    def delete_user(self, user_id):
+    async def delete_user(self, user_id):
         """
         Deletes a user from the database based on the provided user ID.
 
@@ -181,20 +189,20 @@ class DatabaseManager:
         - None
         """
         if not self.connection:
-            print("No database connection")
+            logger.critical("No database connection")
             return
         try:
             cursor = self.connection.cursor()
             query = "DELETE FROM users WHERE user_id = %s"
             cursor.execute(query, (user_id,))
             self.connection.commit()
-            print(f"User {user_id} deleted successfully")
+            logger.info(f"User {user_id} deleted successfully")
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
         finally:
             cursor.close()
 
-    def add_asset(self, user_id, trs_id, collection_id,creator):
+    async def add_asset(self, user_id, trs_id, collection_id,creator):
         """
         Adds a new asset (token) to the user's wallet in the database.
 
@@ -211,19 +219,20 @@ class DatabaseManager:
         - None
         """
         if not self.connection:
-            print("No database connection")
+            logger.critical("No database connection")
             return
         try:
             cursor = self.connection.cursor()
-            query = f"INSERT INTO trs (user_id,trs_id,collection_id,creator) VALUES (%s, %s,%s,%s)"
+            query = f"INSERT INTO trs (user_id,trs_id,collection_name,creator) VALUES (%s, %s,%s,%s)"
+
             values = (user_id, trs_id, collection_id,creator)
             cursor.execute(query, values)
             self.connection.commit()
-            print(f"Token {trs_id} added to {user_id}'s wallet.")
+            logger.info(f"Token {trs_id} added to {user_id}'s wallet.")
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
         
-    def get_owner(self, trs_id):
+    async def get_owner(self, trs_id):
         """
         Retrieves the owner of a specific asset (token) from the database.
 
@@ -239,7 +248,7 @@ class DatabaseManager:
                  If the asset does not exist or there is an error, returns None.
         """
         if not self.connection:
-            print("No database connection")
+            logger.critical("No database connection")
             return None
         try:
             cursor = self.connection.cursor(dictionary=True)
@@ -248,10 +257,10 @@ class DatabaseManager:
             result = cursor.fetchone()
             return result
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return None
     
-    def add_transaction(self, transaction_number, trs_id, buyer_id, seller_id, amount, number):
+    async def add_transaction(self, transaction_number, trs_id, buyer_id, seller_id, amount, number):
         """
         Adds a new transaction record to the database.
 
@@ -271,18 +280,30 @@ class DatabaseManager:
         - None
         """
         if not self.connection:
-            print('No Database Connection')
+            logger.critical('No Database Connection')
         try:
             cursor = self.connection.cursor()
             query = f"INSERT INTO transactions (transaction_number,trs_id,buyer_id,seller_id,amount,number) VALUES (%s, %s,%s,%s,%s)"
             values = (transaction_number, trs_id, buyer_id, seller_id, amount, number)
             cursor.execute(query, values)
             self.connection.commit()
-            print(f"Transaction {transaction_number} added successfully")
+            logger.info(f"Transaction {transaction_number} added successfully")
         except Error as e:
-            print(f"Error: {e}")
-            
-    def transfer_asset(self, user_id, trs_id):
+            logger.error(f"Error: {e}")
+    async def modify_transaction(self, transaction_number,status):
+        if not self.connection:
+            logger.critical('No Database Connection')
+        try:
+            cursor = self.connection.cursor()
+            query = f"UPDATE transactions set status = %s  where transaction_number = %s "
+            values = (status,transaction_number)
+            cursor.execute(query, values)
+            self.connection.commit()
+            logger.info(f"Transaction {transaction_number} modified successfully to {status}")
+        except Error as e:
+            logger.error(f"Error: {e}")
+          
+    async def transfer_asset(self, user_id, trs_id):
         """
         Transfers an asset (token) from the current owner to a new user in the database.
 
@@ -298,18 +319,18 @@ class DatabaseManager:
         - None
         """
         if not self.connection:
-            print("No database connection")
+            logger.critical("No database connection")
         try:
             cursor = self.connection.cursor()
             query = f"UPDATE trs SET user_id = %s WHERE trs_id = %s"
 
             cursor.execute(query, (user_id, trs_id))
-            print(f"Transferred TRS {trs_id} to {user_id}.")
+            logger.info(f"Transferred TRS {trs_id} to {user_id}.")
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
     
     
-    def close_connection(self):
+    async def close_connection(self):
         """
         Closes the database connection if it is currently open.
 
@@ -324,9 +345,9 @@ class DatabaseManager:
         """
         if self.connection and self.connection.is_connected():
             self.connection.close()
-            print("Database connection closed")
+            logger.info("Database connection closed")
             
-    def add_trs(self,number, mint_address, collection_name, token_account_address,creator_id):
+    async def add_trs(self,number, mint_address, collection_name, token_account_address,creator_id):
         """
         Adds a new token to the database.
 
@@ -344,7 +365,7 @@ class DatabaseManager:
         - None
         """
         if not self.connection:
-            print("No database connection")
+            logger.critical("No database connection")
             return
         try:
             cursor = self.connection.cursor()
@@ -354,12 +375,12 @@ class DatabaseManager:
                 values =  (str(trs_id), collection_name, str(mint_address), str(token_account_address),str(creator_id))
                 cursor.execute(query, values)
                 self.connection.commit()
-                print(f"Token {trs_id} ; {str(i+1)} of collection {collection_name} added successfully")
+                logger.info(f"Token {trs_id} ; {str(i+1)} of collection {collection_name} added successfully")
                 self.add_asset(creator_id, trs_id, collection_name,creator_id)
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
 
-    def add_paypal_transaction(self, transaction_number, buyer_id, seller_id, amount, transaction_date):
+    async def add_paypal_transaction(self, transaction_number, buyer_id, seller_id, amount, transaction_date):
         """
         Adds a new PayPal transaction record to the database.
 
@@ -378,7 +399,7 @@ class DatabaseManager:
         - None
         """
         if not self.connection:
-            print("No database connection")
+            logger.critical("No database connection")
             return
         try:
             cursor = self.connection.cursor()
@@ -386,7 +407,70 @@ class DatabaseManager:
             values = (str(transaction_number), str(buyer_id), str(seller_id), amount)
 
             cursor.execute(query, values)
-            print(f"Added PayPal transaction with transaction number {transaction_number}")
+            logger.info(f"Added PayPal transaction with transaction number {transaction_number}")
         except Error as e:
-            print(f"Error: {e}")
+            logger.error(f"Error adding paypal transaction: {e}")
+            
+    async def modify_paypal_transaction(self,transaction_id,status):
+        if not self.connection:
+            logger.critical("No database connection")
+            return
+        try: 
+            cursor = self.connection.cursor()
+            query = f"UPDATE paypal_transactions SET status = %s WHERE transaction_id = %s"
+            values = (str(status),str(transaction_id))
+            logger.info(f"Updated paypal transaction {transaction_id} to {status} ")
+        except Error as e:
+            logger.error(f"Error updating paypal transaction : {e}")
+    async def get_wallet(self, user_id):
+        """
+        Retrieves the wallet of a user from the database.
+
+        This function connects to the database, checks if a connection is available, and then retrieves the wallet
+        of a user from the 'trs' table based on the provided user ID. If the connection is not available, it prints a
+        message indicating the lack of a database connection. If the user does not exist, it prints a message indicating
+        the user not found.
+
+        Parameters:
+        - user_id (int): The unique identifier of the user.
+
+        Returns:
+        - list: A list of dictionaries containing the asset (token) details in the user's wallet.
+                 If the user does not exist or there is an error, returns None.
+        """
+        if not self.connection:
+            logger.critical("No Database connection.")
+        elif not await self.get_user(user_id):
+            logger.info(f"User not found {user_id}")
+            return None
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+                query = "SELECT trs_id,collection_name FROM trs WHERE user_id = %s"
+                cursor.execute(query, (user_id,))
+                result = cursor.fetchall()
+                return result
+            except Error as e:
+                logger.error(f"Error: {e}")
+                return None
+            finally: 
+                cursor.close()
     
+    async def get_wallet_by_collection(self,user_id,collection_id):
+        if not self.connection:
+            logger.critical("No Database connection.")
+        elif not await self.get_user(user_id):
+            logger.error(f"User not found {user_id}")
+            return None
+        else:
+            try:
+                cursor = self.connection.cursor(dictionary=True)
+                query = "SELECT trs_id, collection_name FROM trs WHERE user_id = %s AND collection_name = %s"
+                cursor.execute(query, (user_id, collection_id))
+                result = cursor.fetchall()
+                return result
+            except Error as e:
+                logger.error(f"Error: {e}")
+                return None
+            finally:
+                cursor.close()
