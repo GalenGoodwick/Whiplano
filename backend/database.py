@@ -260,7 +260,7 @@ class DatabaseManager:
             logger.error(f"Error: {e}")
             return None
     
-    async def add_transaction(self, transaction_number, trs_id, buyer_id, seller_id, amount, number):
+    async def add_transaction(self, buyer_transaction_number, trs_id, buyer_id, seller_id, amount, number):
         """
         Adds a new transaction record to the database.
 
@@ -283,11 +283,13 @@ class DatabaseManager:
             logger.critical('No Database Connection')
         try:
             cursor = self.connection.cursor()
-            query = f"INSERT INTO transactions (transaction_number,trs_id,buyer_id,seller_id,amount,number) VALUES (%s, %s,%s,%s,%s)"
-            values = (transaction_number, trs_id, buyer_id, seller_id, amount, number)
+            transaction_number = str(uuid.uuid4())
+            query = f"INSERT INTO transactions (buyer_transaction_number,transaction_number,trs_id,buyer_id,seller_id,amount,number) VALUES (%s,%s, %s,%s,%s,%s)"
+            values = (buyer_transaction_number,transaction_number, trs_id, buyer_id, seller_id, amount, number)
             cursor.execute(query, values)
             self.connection.commit()
-            logger.info(f"Transaction {transaction_number} added successfully")
+            logger.info(f"Transaction {transaction_number} and buyer transaction number {buyer_transaction_number} added successfully")
+            
         except Error as e:
             logger.error(f"Error: {e}")
     async def modify_transaction(self, transaction_number,status):
@@ -380,7 +382,7 @@ class DatabaseManager:
         except Error as e:
             logger.error(f"Error: {e}")
 
-    async def add_paypal_transaction(self, transaction_number, buyer_id, seller_id, amount, transaction_date):
+    async def add_paypal_transaction(self, transaction_number, buyer_id, seller_id, amount):
         """
         Adds a new PayPal transaction record to the database.
 

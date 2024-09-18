@@ -21,7 +21,7 @@ logger = logging.getLogger("main")
 
 from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES
 app = FastAPI()
-
+whiplano_id = '0000-0000-0000'
 database_client = database.DatabaseManager(
     host='localhost',
     user='root',
@@ -291,7 +291,7 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
         }
         try:
             resp = await paypal.create_payment(data)
-            await database_client.add_paypal_transaction(resp['id'])
+            await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id)
             logger.info(f"Payment created succesfully with id {resp['id']}")
             
             return {"message": "Payment created successful.",
