@@ -451,12 +451,66 @@ class DatabaseManager:
                 query = "SELECT trs_id,collection_name FROM trs WHERE user_id = %s"
                 cursor.execute(query, (user_id,))
                 result = cursor.fetchall()
+                logger.info(f"Returned wallet of user {user_id}")
                 return result
             except Error as e:
                 logger.error(f"Error: {e}")
                 return None
             finally: 
                 cursor.close()
+    
+    async def get_approved_transactions(self,buyer_transaction_id):
+        if not self.connection:
+            logger.critical("No Database connection.")
+            return None
+        try:
+            cursor = self.connection.cursor(dictionary=True)
+            query = "SELECT * FROM transactions WHERE buyer_id = %s AND status = %s"
+            cursor.execute(query, (buyer_transaction_id, "initiated"))
+            result = cursor.fetchall()
+            logger.info(f"Retrieved approved transactions for buyer {buyer_transaction_id}")
+            return result
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return None
+        finally:
+            cursor.close()
+        
+    
+    async def approve_initiated_transactions(self,buyer_transaction_id):
+        if not self.connection:
+            logger.critical("No Database connection.")
+            return None
+        try:
+            cursor = self.connection.cursor(dictionary=True)
+            query = "UPDATE transacations SET status = 'approved' where buyer_id = %s AND status = 'initiated'"
+            cursor.execute(query, (buyer_transaction_id, ))
+            result = cursor.fetchall()
+            logger.info(f"Approved initiated transactions for buyer {buyer_transaction_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return None
+        finally:
+            cursor.close()
+        return
+    async def finish_approved_transactions(self,buyer_transaction_id):
+        if not self.connection:
+            logger.critical("No Database connection.")
+            return None
+        try:
+            cursor = self.connection.cursor(dictionary=True)
+            query = "UPDATE transacations SET status = 'finished' where buyer_id = %s AND status = 'initiated'"
+            cursor.execute(query, (buyer_transaction_id, ))
+            result = cursor.fetchall()
+            logger.info(f"Finished approved transactions for buyer {buyer_transaction_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return None
+        finally:
+            cursor.close()
+        return
     
     async def get_wallet_by_collection(self,user_id,collection_id):
         if not self.connection:
@@ -470,9 +524,47 @@ class DatabaseManager:
                 query = "SELECT trs_id, collection_name FROM trs WHERE user_id = %s AND collection_name = %s"
                 cursor.execute(query, (user_id, collection_id))
                 result = cursor.fetchall()
+                logger.info(f"Selected wallet by collection {collection_id}, from {user_id}")
                 return result
             except Error as e:
                 logger.error(f"Error: {e}")
                 return None
             finally:
                 cursor.close()
+                
+    async def get_mint_address(self,collection_name):
+        if not self.connection:
+            logger.critical("No Database connection.")
+        else:
+            try:
+                cursor = self.connection.cursor(dictionary=True)
+                query = "SELECT mint_address FROM collections WHERE collection_name = %s"
+                cursor.execute(query, (collection_name,))
+                result = cursor.fetchall()
+                logger.info(f"Retrieved Mint Address by collection {collection_name}")
+                return result
+            except Error as e:
+                logger.error(f"Error: {e}")
+                return None
+            finally:
+                cursor.close()
+        return 
+    
+    async def get_creator(self,collection_name):
+        if not self.connection:
+            logger.critical("No Database connection.")
+        else:
+            try:
+                cursor = self.connection.cursor(dictionary=True)
+                query = "SELECT creator_id FROM collections WHERE collection_name = %s LIMIT 1"
+                
+                cursor.execute(query, (collection_name,))
+                result = cursor.fetchall()
+                logger.info(f"Retrieved Creator id of collection {collection_name}")
+                return result['creator_id']
+            except Error as e:
+                logger.error(f"Error: {e}")
+                return None
+            finally:
+                cursor.close()
+        return 

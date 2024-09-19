@@ -12,7 +12,10 @@ from dotenv import load_dotenv
 import os  
 import requests
 import logging
+import uuid
 
+ROYALTY  = 2.5
+FEES = 2.5
 # Initialize logging
 from backend.logging_config import logging_config  # Import the configuration file
 import logging.config
@@ -226,48 +229,6 @@ async def mint_trs(data : NFTData):
 
 
 
-@app.post("/paypal/create_payment", dependencies=[Depends(get_current_user)])
-async def paypal_payment(data : CreatePaymentData):
-    """
-    This function is responsible for creating a payment on PayPal.
-
-    Parameters:
-    data (CreatePaymentData): A Pydantic model containing the necessary data for creating a payment.
-        - amount (str): The amount of the payment.
-        - cancel_url (str): The URL for the user to be redirected to when the payment is cancelled.
-        - description (str): Description of the payment for PayPal.
-        - return_url (str): The URL for the user to be redirected to after the payment is completed.
-
-    Returns:
-    dict: A dictionary containing a success message.
-        - message (str): "Payment created successful."
-
-    Raises:
-    HTTPException: If an error occurs during the payment creation process.
-    """
-    try:
-        data = dict(data)
-        
-        data['return_url'] = "http://localhost:8000/paypal/execute_payment"
-        resp = await paypal.create_payment(data)
-        print(resp)
-        print(resp['links'][1])
-        return {"message": "Payment created successful.",
-                'approval_url': resp['links'][1]['href']}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    
-@app.post('/transaction/create', dependencies=[Depends(get_current_user)])
-async def transaction(data: BlockChainTransactionData):
-    try:
-        resp = transaction_module.transaction(data.transaction_number)
-        return resp
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to store transaction: {str(e)}")
-
-
 async def trade_continuation():
     
     return
@@ -282,18 +243,34 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
     if trs_count < data.number:
         logger.info("Not enough TRS being offered by the sellers. ")
         raise HTTPException(status_code=400, detail="Insufficient funds")
+    
     else:
         description = f"Buy order for {data.number} TRS of {data.collection_name}. Price per TRS = {data.number}, Total Amount = {(data.number*data.cost)}"
-        data = {
+        data_transac = {
             'collection_name':(data.number)*(data.cost),
             'cancel_url' : "https://example.com",
-            "description": description            
+            "description": description,
+            "return_url":"localhost:8000/trade/execute_payment"   
         }
         try:
-            resp = await paypal.create_payment(data)
+            resp = await paypal.create_payment(data_transac)
             await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id)
             logger.info(f"Payment created succesfully with id {resp['id']}")
+            buyer_transaction_number = resp['id']
+            required_transactions = {}
+            required_number = data.number
+            for seller_id in data.seller_id:
+                if len(wallets[seller_id]) >= required_number:
+                    required_transactions[seller_id] = wallets[seller_id][0:required_number-1]
+                else:
+                    required_transactions[seller_id] = wallets[seller_id]
+                    required_number -= len(wallets[seller_id])
             
+            for seller_id in required_transactions:
+                await database_client.add_transaction(buyer_transaction_number,data.collection_name,buyer.id,seller_id,data.cost,len(required_transactions['seller_id']))
+                    
+                    
+
             return {"message": "Payment created successful.",
                     'approval_url': resp['links'][1]['href']}
             
@@ -303,15 +280,71 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
         return
 
 
-@app.get('/paypal/execute_payment')
+@app.get('/trade/execute_payment')
 async def execute_payment(
     paymentId: Optional[str] = Query(None), 
     PayerID: Optional[str] = Query(None),
 ):
     try:
         resp = await paypal.execute_payment(paymentId,PayerID)
-        logger.info(f"Executed transaction with id {paymentId}")
+        logger.info(f"Executed payment with id {paymentId}")
         await database_client.modify_paypal_transaction(paymentId,'executed')
+        
+        initiate = await database_client.approve_initiated_transactions(paymentId)
+        if initiate:
+            logger.info(f"Approved initiated transactions with buyer payment id {paymentId}")
+        else:
+            raise HTTPException(status_code=500,detail="Failed to approve transaction. ")
+        
+        transactions = await database_client.get_approved_transactions(paymentId)
+        
+        batch_id = str(uuid.uuid4)
+        for transaction in transactions:
+            seller_email = await database_client.get_user(transaction['seller_id'])
+            seller_email = seller_email['email']
+            buyer_email = await database_client.get_user(transaction['buyer_id'])
+            buyer_email = buyer_email['email']
+            creator_email = await database_client.get_creator(transaction['collection_id'])
+            creator_email = await database_client.get_user(creator_email)
+            creator_email = creator_email['email']
+            payout_info = {
+                    "batch_id":batch_id,
+                    "recipient_email":seller_email,
+                    "amount":(transaction['cost']*transaction['number']) * ( 100 - ROYALTY + FEES) / 100,
+                    "currency":"USD",
+                    "note": f"Payment to {seller_email} for TRS of collection {transaction['collection_name']}. "
+                }
+            await paypal.payout(payout_info)
+            royalty_payout_info = payout_info = {
+                    "batch_id":batch_id,
+                    "recipient_email":seller_email,
+                    "amount":(transaction['cost']*transaction['number']) * (ROYALTY) / 100,
+                    "currency":"USD",
+                    "note": f"Royalty for {creator_email} for trade of TRS of collection {transaction['collection_name']}. "
+                }
+            data = {
+                "transaction_number":transaction['transaction_number'],
+                "buyer_id": transaction['buyer_id'],
+                "seller_id": transaction['seller_id'],
+                "seller_email": seller_email,
+                "buyer_email":buyer_email,
+                "trs_count": transaction['number']
+            }
+            await transaction_module.transaction(data)
+            
+            seller_wallet  = await database_client.get_wallet_by_collection(transaction['seller_id'],transaction['collection_name'])
+            
+            req_trs = seller_wallet[0:transaction['number']-1]
+            
+            for trs in req_trs: 
+                database_client.transfer_asset(transaction['buyer_id'],trs['trs_id'])
+
+            
+        finalize = await database_client.finish_approved_transactions(paymentId)
+        logger.info(f"Completed Trade with buyer transaction number {paymentId}")
+        return {"message": f"Completed Trade with buyer transaction number {paymentId}"}
+            
+    
         
     except Exception as error:
         logger.error(f"Error executing transaction {paymentId} {error}")
