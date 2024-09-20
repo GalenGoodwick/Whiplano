@@ -22,10 +22,10 @@ load_dotenv()
 
 database_password = os.getenv("DATABASE_PASSWORD")
 central_key = os.getenv('CENTRAL_WALLET_PUBKEY')
-database = DatabaseManager(
+database= DatabaseManager(
     host='localhost',
     user='root',
-    password='new_password',
+    password=os.getenv("DATABASE_PASSWORD"),
     database ='whiplano'
 )
 

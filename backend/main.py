@@ -28,7 +28,7 @@ whiplano_id = '0000-0000-0000'
 database_client = database.DatabaseManager(
     host='localhost',
     user='root',
-    password='new_password',
+    password=os.getenv("DATABASE_PASSWORD"),
     database ='whiplano'
 )
 
@@ -65,8 +65,7 @@ class MintTrsData(BaseModel):
     collection_symbol : str = Field(..., description = "Symbol of the collection")
     number : int = Field(..., description = "Number of TRSs")
     uri : str = Field(..., description="URI of the NFT")
-    creator_id : str = Field(..., description = "ID of the creator")
-    
+   
 class TradeCreateData(BaseModel):
     collection_name : str = Field(..., description = "Name of the collection to be bought")
     seller_id : list = Field(..., description = "ID of the seller")
@@ -83,7 +82,7 @@ async def root():
 @app.post("/login", response_model=Token)
 async def login(email: str = Form(...), password: str = Form(...)):
     
-    user = await authenticate_user( email, password)
+    user = await authenticate_user(email, password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -199,19 +198,18 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 @app.post("/mint_trs", dependencies=[Depends(get_current_user)])
-async def mint_trs(data : NFTData):
+async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
     """
     This function is responsible for minting a new TRS using the provided data.
 
     Parameters:
-    data (NFTData): A Pydantic model containing the necessary data for minting an NFT.
+    data (MintTrsData): A Pydantic model containing the necessary data for minting an NFT.
         - collection_name (str): The name of the collection.
         - collection_description (str): The description of the collection.
         - collection_symbol (str): The symbol of the collection.
         - number (int): The number of TRSs.
         - uri (str): The URI of the NFT.
-        - creator_id (str): The ID of the creator.
-
+        
     Returns:
     dict: A dictionary containing a success message.
         - message (str): "TRS minted successfully."
@@ -222,16 +220,14 @@ async def mint_trs(data : NFTData):
     try:
         
         data = dict(data)
+        data['creator_id'] = user
+    
         await mint.mint_nft(data)
         return {"message": "TRS minted successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
-async def trade_continuation():
-    
-    return
 @app.post('/trade/create',dependencies=[Depends(get_current_user)])
 async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
     wallets = {}
@@ -349,3 +345,9 @@ async def execute_payment(
     except Exception as error:
         logger.error(f"Error executing transaction {paymentId} {error}")
         raise HTTPException(status_code=500, detail=str(error)) 
+
+
+@app.get('/wallet/get',dependencies=[Depends(get_current_user)])
+async def trade_create(user : User = Depends(get_current_user)):
+    wallet = await database_client.get_wallet(user.id)
+    return wallet 

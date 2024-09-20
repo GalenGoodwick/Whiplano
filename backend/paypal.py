@@ -21,11 +21,10 @@ logger = logging.getLogger("paypal")
 PAYPAL_API_URL = 'https://api-m.sandbox.paypal.com/v1/payments/payment'
 PAYPAL_CLIENT_ID = os.getenv('PAYPAL_CLIENT_ID')
 PAYPAL_CLIENT_SECRET = os.getenv('PAYPAL_CLIENT_SECRET')
-
 database = DatabaseManager(
     host='localhost',
     user='root',
-    password='new_password',
+    password=os.getenv("DATABASE_PASSWORD"),
     database ='whiplano'
 )
 

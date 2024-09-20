@@ -1,0 +1,20 @@
+{
+    "name": "MintingTrs10",
+    "symbol": "title",
+    "description": "title",
+    "image": "./collections/assets/9.png",
+    "attributes": [
+        {
+            "trait_type": "Number",
+            "value": "0"
+        }
+    ],
+    "properties": {
+        "files": [
+            {
+                "uri": "./collections/assets/9.png",
+                "type": "image/png"
+            }
+        ]
+    }
+}

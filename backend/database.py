@@ -374,11 +374,13 @@ class DatabaseManager:
             for i in range(number):
                 trs_id = uuid.uuid4().int
                 query = f"INSERT INTO collections (trs_id, collection_name, mint_address, token_account_address,creator_id) VALUES (%s, %s, %s, %s,%s)"
+                
                 values =  (str(trs_id), collection_name, str(mint_address), str(token_account_address),str(creator_id))
                 cursor.execute(query, values)
                 self.connection.commit()
                 logger.info(f"Token {trs_id} ; {str(i+1)} of collection {collection_name} added successfully")
-                self.add_asset(creator_id, trs_id, collection_name,creator_id)
+                await self.add_asset(creator_id, trs_id, collection_name,creator_id)
+                
         except Error as e:
             logger.error(f"Error: {e}")
 

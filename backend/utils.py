@@ -10,12 +10,22 @@ from pydantic import BaseModel
 import uuid
 from backend import database 
 
-load_dotenv()  # Load environment variables
 
+import smtplib
+from email.mime.text import MIMEText
+
+# Email credentials
+smtp_server = "smtp.gmail.com"
+port = 465
+email_address = "danielvincent1718@gmail.com"
+
+
+load_dotenv()  # Load environment variables
+email_password = os.getenv("GOOGLE_EMAIL_PASSWORD")
 database_client = database.DatabaseManager(
     host='localhost',
     user='root',
-    password='new_password',
+    password=os.getenv("DATABASE_PASSWORD"),
     database ='whiplano'
 )
 
@@ -139,8 +149,11 @@ async def authenticate_user(email: str, password: str) -> Union[User, None]:
     Union[User, None]: The user object if the email and password are valid, otherwise None.
     """
     user = await database_client.get_user_by_email(email)
+    
     if user and verify_password(password, user["password_hash"]):
-        return User(**user)
+        
+        
+        return User(email=user['email'], username=user['username'],id=user['user_id'])
     return None
 
 
@@ -186,4 +199,5 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
         raise credentials_exception
     return User(**user)
+
 

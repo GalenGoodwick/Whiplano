@@ -71,7 +71,7 @@ class TransactionCreator:
         """
         
         # Memo template with both emails
-        memo = f"txn={txn_number},buyer={buyer_email},seller={seller_email},items={trs_count},buyer_uuid={buyer_uuid},seller_uuid={seller_uuid}"
+        memo = f"txn={txn_number},buyer={buyer_email},seller={seller_email},number={trs_count},buyer_uuid={buyer_uuid},seller_uuid={seller_uuid}"
         
         # Check if the memo size is under 500 bytes when UTF-8 encoded
         if len(memo.encode('utf-8')) <= 500:
@@ -125,11 +125,6 @@ async def transaction(data):
     return {"message": "Created and signed transaction successfully"}
     
  
-
-
-
-    
-
 
 
 #asyncio.run(main())
