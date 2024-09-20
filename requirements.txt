@@ -36,7 +36,6 @@ fastapi==0.114.0
 frozenlist==1.4.1
 google==3.0.0
 google-auth==2.34.0
-gyp==0.1
 h11==0.12.0
 h5py==3.11.0
 httpcore==0.14.7
