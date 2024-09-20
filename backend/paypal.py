@@ -10,16 +10,21 @@ from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
 import base64
 from backend.database import DatabaseManager
-load_dotenv()
+import logging
 
+# Initialize logging
+from backend.logging_config import logging_config  # Import the configuration file
+import logging.config
+logging.config.dictConfig(logging_config)
+load_dotenv()
+logger = logging.getLogger("paypal")
 PAYPAL_API_URL = 'https://api-m.sandbox.paypal.com/v1/payments/payment'
 PAYPAL_CLIENT_ID = os.getenv('PAYPAL_CLIENT_ID')
 PAYPAL_CLIENT_SECRET = os.getenv('PAYPAL_CLIENT_SECRET')
-
 database = DatabaseManager(
     host='localhost',
     user='root',
-    password='new_password',
+    password=os.getenv("DATABASE_PASSWORD"),
     database ='whiplano'
 )
 
@@ -71,6 +76,8 @@ class PayPal:
             }
             async with session.post(PAYPAL_API_URL, auth=auth, headers=headers, json=data) as response:
                 response_data = await response.json()
+            
+                logger.info(f"Created payment with id {response_data['id']},description : {response_data['transactions'][0]['description']}")
                 return response_data
 
     async def execute_payment(self, payment_id, payer_id):
@@ -86,6 +93,7 @@ class PayPal:
             }
             async with session.post(execute_url, auth=auth, headers=headers, json=data) as response:
                 response_data = await response.json()
+                #print(response_data)
                 return response_data
 
 class PayPalPayouts:
@@ -129,6 +137,8 @@ class PayPalPayouts:
                     print(f"Failed to send payout: {response_data}")
                     return response_data
 
+async def verify_transaction(transaction):
+    return
 
 async def create_payment(data):
     paypal = PayPal()
@@ -139,9 +149,6 @@ async def create_payment(data):
 async def execute_payment(payment_id, payer_id):
     paypal  = PayPal()
     resp = await paypal.execute_payment(payment_id, payer_id)
-    transaction_number = resp['transacti']
-    amount = resp['amount']
-    
     return resp 
 
 async def payout(data):
@@ -156,6 +163,6 @@ async def payout(data):
         currency=data['currency'],
         note=data['note'])
     
-    print("Payout sent. ")
+    logger.info(f"Payout sent to {data['recipient_email']}, amount = {data['ammount']} ")
     return response
 

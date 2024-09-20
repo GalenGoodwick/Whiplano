@@ -15,6 +15,10 @@ dotenv.load_dotenv()
 
 client = AsyncClient("https://api.devnet.solana.com")
 
+from backend.logging_config import logging_config  # Import the configuration file
+import logging.config
+logging.config.dictConfig(logging_config)
+logger = logging.getLogger("transaction")
 
 central_wallet = Pubkey.from_string(os.getenv('CENTRAL_WALLET_PUBKEY'))
 central_wallet_keypair = Keypair.from_bytes(json.loads(os.getenv('CENTRAL_WALLET_KEY').encode()))
@@ -45,24 +49,48 @@ async def get_token_account_address(mint_address):
         print(f"Error: {e}")
 
 class TransactionCreator:
-    def __init__(self, token_account_address, transaction_number):
+    def __init__(self, token_account_address):
         self.token_account_address = token_account_address
-        self.transaction_number = transaction_number
-    
-    async def memo_creator(self):
         
-        text = bytes(self.transaction_number,encoding ='utf-8')
-        params = MemoParams(
+    
+    async def generate_memo(txn_number: str, seller_email: str, buyer_email: str, trs_count: int, seller_uuid: str, buyer_uuid: str) -> str:
+        """
+        Generates a memo string for a Solana transaction that includes a PayPal transaction number, seller and buyer information, 
+        and the number of TRS. If the memo exceeds 500 bytes, the function will remove email addresses and use UUIDs.
+        
+        Args:
+        - txn_number: PayPal transaction number.
+        - seller_email: Seller's email address.
+        - buyer_email: Buyer's email address.
+        - trs_count: Number of TRS (items).
+        - seller_uuid: UUID for the seller.
+        - buyer_uuid: UUID for the buyer.
+        
+        Returns:
+        - memo: A UTF-8 encoded string under 500 bytes.
+        """
+        
+        # Memo template with both emails
+        memo = f"txn={txn_number},buyer={buyer_email},seller={seller_email},number={trs_count},buyer_uuid={buyer_uuid},seller_uuid={seller_uuid}"
+        
+        # Check if the memo size is under 500 bytes when UTF-8 encoded
+        if len(memo.encode('utf-8')) <= 500:
+            return memo
+        
+        # If emails make the memo exceed 500 bytes, remove them and stick to UUIDs
+        memo = f"txn={txn_number},items={trs_count},buyer_uuid={buyer_uuid},seller_uuid={seller_uuid}"
+        logger.info(f"Created memo {memo}")
+        return memo
+          
+    async def send_transaction(self,txn_number,seller_email,buyer_email,trs_count,seller_uuid,buyer_uuid):
+        txn = Transaction()
+        
+        memo_params = MemoParams(
             program_id = MEMO_PROGRAM_ID,
-            message= text,
+            message= await self.generate_memo(txn_number,seller_email,buyer_email,trs_count,seller_uuid,buyer_uuid),
             signer = central_wallet,
         )
-        
-        return create_memo(params)
-          
-    async def send_transaction(self):
-        txn = Transaction()
-        memo = await self.memo_creator()
+        memo = create_memo(memo_params)
         txn.add(memo)
         transferparams = TransferParams(
             program_id=Pubkey.from_string('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
@@ -77,25 +105,26 @@ class TransactionCreator:
         )
         response = await client.send_transaction(txn,central_wallet_keypair)
         
-        print(F"Transaction hash: {response}")
+        logger.info(F"Transaction hash: {response}")
     
 
-async def transaction(transaction_number):
-    e = TransactionCreator(await get_token_account_address(),transaction_number)
-    await e.send_transaction()
+
+async def transaction(data):
+    
+    e = TransactionCreator(
+        await get_token_account_address())
+    await e.send_transaction(
+        data['transaction_number'],
+        data['seller_email'],
+        data['buyer_email'],
+        data['trs_count'],
+        data['seller_id'],
+        data['buyer_id']
+    )
+    logger.log(f"Created and signed transaction for {data['transaction_number']}")
     return {"message": "Created and signed transaction successfully"}
     
  
-
-
-
-
-async def main():
-    e = TransactionCreator(Pubkey.from_string('EhKdZDMYs4PnYurXaz1fCYfkpnDxdzEZBc2SNEF8B8HS'),'hello')
-    await e.create_transaction()
-    await client.close()
-    
-
 
 
 #asyncio.run(main())

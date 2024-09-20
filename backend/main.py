@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException, Query,Depends,Form,status
-from backend import database, mint, paypal, transaction, utils
+from backend import database, mint, paypal, utils
+from backend import transaction as transaction_module
 from typing import Optional
-from pydantic import BaseModel,Field
+from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import RedirectResponse
@@ -9,14 +10,25 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from dotenv import load_dotenv
 import os  
+import requests
+import logging
+import uuid
+
+ROYALTY  = 2.5
+FEES = 2.5
+# Initialize logging
+from backend.logging_config import logging_config  # Import the configuration file
+import logging.config
+logging.config.dictConfig(logging_config)
+logger = logging.getLogger("main")
 
 from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES
 app = FastAPI()
-
+whiplano_id = '0000-0000-0000'
 database_client = database.DatabaseManager(
     host='localhost',
     user='root',
-    password='new_password',
+    password=os.getenv("DATABASE_PASSWORD"),
     database ='whiplano'
 )
 
@@ -26,7 +38,11 @@ REDIRECT_URI = "http://localhost:8000/callback/google"
 
 
 #BASE MODELS
-
+class SignupRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    
 class NFTData(BaseModel):
     collection_name: str = Field(..., description="Name of the collection") 
     collection_description: str = Field(..., description="Description of the collection")
@@ -36,22 +52,37 @@ class NFTData(BaseModel):
     creator_id: str = Field(..., description="ID of the creator")
 
 class CreatePaymentData(BaseModel):
-    amount : str =  Field(..., description="Amount")
+    amount : int =  Field(..., description="Amount")
     cancel_url : str = Field(..., description="URL for the user to be redirected to when the payment is cancelled. ")
     description : str = Field(...,description="Description of the payment for Paypal.")
 
 class BlockChainTransactionData(BaseModel):
     transaction_number : str = Field(..., description = "Transaction number of the paypal transaction to be stored on the chain. ")
 
+class MintTrsData(BaseModel):
+    collection_name : str = Field(..., description = "Name of the collection")
+    collection_description : str = Field(..., description = "Description of the collection")
+    collection_symbol : str = Field(..., description = "Symbol of the collection")
+    number : int = Field(..., description = "Number of TRSs")
+    uri : str = Field(..., description="URI of the NFT")
+   
+class TradeCreateData(BaseModel):
+    collection_name : str = Field(..., description = "Name of the collection to be bought")
+    seller_id : list = Field(..., description = "ID of the seller")
+    number : int = Field(..., description = "Number of TRSs to be traded") 
+    cost : float = Field(..., description = "Cost of one TRS")
+    
 
 
 @app.get("/")
 async def root():
+    logger.info("App is running.")
     return {"message": "App is running."}
 
 @app.post("/login", response_model=Token)
 async def login(email: str = Form(...), password: str = Form(...)):
-    user = authenticate_user( email, password)
+    
+    user = await authenticate_user(email, password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -62,10 +93,34 @@ async def login(email: str = Form(...), password: str = Form(...)):
     access_token = create_auth_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
+    logger.info(f"User {user.email} succesfully authenticated")
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post('/signup', response_model=Token)
+async def signup(user: SignupRequest):
+    # Check if the user already exists
+    existing_user = await database_client.get_user_by_email(user.email)
+    if existing_user:
+        logger.info("Attempted sign up for existing user. ")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    # Hash the password
+    hashed_password = utils.hash_password(user.password)
+    
+    user_id = await database_client.add_user(user.username,user.email,hashed_password)
+
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_auth_token(data={"sub": user.email}, expires_delta=access_token_expires)
+    logger.info(f"User created with email {user.email}")
+    # Return token
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/login/google")
-def login_with_google():
+async def login_with_google():
     """
     Redirects the user to the Google OAuth2 authorization page for login.
 
@@ -79,11 +134,12 @@ def login_with_google():
     Returns:
     RedirectResponse: A FastAPI response object that redirects the user to the Google OAuth2 authorization page.
     """
+    logging.info("Redirecting user to Google OAuth2")
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/auth?client_id={GOOGLE_CLIENT_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=openid email")
 
 
 @app.get("/callback/google")
-def google_callback(request: Request):
+async def google_callback(request: Request):
     """
     This function handles the callback from Google OAuth2 authorization.
     It exchanges the authorization code for an access token and retrieves the user's email.
@@ -105,10 +161,23 @@ def google_callback(request: Request):
         'grant_type': 'authorization_code',
         'redirect_uri': REDIRECT_URI
     }
-    response = google_requests.post(token_url, data=payload)
+    response =  requests.post(token_url, data=payload)
     idinfo = id_token.verify_oauth2_token(response.json()["id_token"], google_requests.Request(), GOOGLE_CLIENT_ID)
-
-    return {"email": idinfo['email']}
+    
+    if not idinfo['email_verified']:
+        return {"error":"Email not verified."}
+    try:
+        user = await database_client.get_user_by_email(idinfo['email'])
+    except Exception as e:
+        
+        #signup logic
+        return
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_auth_token(
+        data={"sub": idinfo['email']}, expires_delta=access_token_expires
+    )
+    logging.info(f"Authenticated user {idinfo['email']} using Google OAuth2")
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/users/me", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_user)):
@@ -125,106 +194,160 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     Returns:
     User: The current user's information.
     """
+    
     return current_user
 
-@app.post("/mint")
-async def mint_nft(data : NFTData):
+@app.post("/mint_trs", dependencies=[Depends(get_current_user)])
+async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
     """
-    This function is responsible for minting a new NFT using the provided data.
+    This function is responsible for minting a new TRS using the provided data.
 
     Parameters:
-    data (NFTData): A Pydantic model containing the necessary data for minting an NFT.
+    data (MintTrsData): A Pydantic model containing the necessary data for minting an NFT.
         - collection_name (str): The name of the collection.
         - collection_description (str): The description of the collection.
         - collection_symbol (str): The symbol of the collection.
         - number (int): The number of TRSs.
         - uri (str): The URI of the NFT.
-        - creator_id (str): The ID of the creator.
-
+        
     Returns:
     dict: A dictionary containing a success message.
-        - message (str): "NFT minted successfully."
+        - message (str): "TRS minted successfully."
 
     Raises:
     HTTPException: If an error occurs during the minting process.
     """
     try:
-        mint.mint_nft(data)
-        return {"message": "NFT minted successfully."}
+        
+        data = dict(data)
+        data['creator_id'] = user
+    
+        await mint.mint_nft(data)
+        return {"message": "TRS minted successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/paypal/create_payment")
-async def paypal_payment(data : CreatePaymentData):
-    """
-    This function is responsible for creating a payment on PayPal.
 
-    Parameters:
-    data (CreatePaymentData): A Pydantic model containing the necessary data for creating a payment.
-        - amount (str): The amount of the payment.
-        - cancel_url (str): The URL for the user to be redirected to when the payment is cancelled.
-        - description (str): Description of the payment for PayPal.
-        - return_url (str): The URL for the user to be redirected to after the payment is completed.
+@app.post('/trade/create',dependencies=[Depends(get_current_user)])
+async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
+    wallets = {}
+    for i in data.seller_id:
+        wallets[i] = await database_client.get_wallet_by_collection(i,data.collection_name)
+    trs_count = 0
+    for i in wallets:
+        trs_count += len(wallets[i])
+    if trs_count < data.number:
+        logger.info("Not enough TRS being offered by the sellers. ")
+        raise HTTPException(status_code=400, detail="Insufficient funds")
+    
+    else:
+        description = f"Buy order for {data.number} TRS of {data.collection_name}. Price per TRS = {data.number}, Total Amount = {(data.number*data.cost)}"
+        data_transac = {
+            'collection_name':(data.number)*(data.cost),
+            'cancel_url' : "https://example.com",
+            "description": description,
+            "return_url":"localhost:8000/trade/execute_payment"   
+        }
+        try:
+            resp = await paypal.create_payment(data_transac)
+            await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id)
+            logger.info(f"Payment created succesfully with id {resp['id']}")
+            buyer_transaction_number = resp['id']
+            required_transactions = {}
+            required_number = data.number
+            for seller_id in data.seller_id:
+                if len(wallets[seller_id]) >= required_number:
+                    required_transactions[seller_id] = wallets[seller_id][0:required_number-1]
+                else:
+                    required_transactions[seller_id] = wallets[seller_id]
+                    required_number -= len(wallets[seller_id])
+            
+            for seller_id in required_transactions:
+                await database_client.add_transaction(buyer_transaction_number,data.collection_name,buyer.id,seller_id,data.cost,len(required_transactions['seller_id']))
+                    
+                    
 
-    Returns:
-    dict: A dictionary containing a success message.
-        - message (str): "Payment created successful."
+            return {"message": "Payment created successful.",
+                    'approval_url': resp['links'][1]['href']}
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        
+        return
 
-    Raises:
-    HTTPException: If an error occurs during the payment creation process.
-    """
-    try:
-        data['return_url'] = "http://localhost:8000/paypal/execute_payment"
-        e = await paypal.create_payment(data)
-        print(e)
-        return {"message": "Payment created successful."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get('/paypal/execute_payment')
+@app.get('/trade/execute_payment')
 async def execute_payment(
     paymentId: Optional[str] = Query(None), 
     PayerID: Optional[str] = Query(None),
-    token: Optional[str] = Query(None)
 ):
     try:
-        
         resp = await paypal.execute_payment(paymentId,PayerID)
-        return resp
-    except Exception as e:
-       raise HTTPException(status_code=500, detail=str(e)) 
+        logger.info(f"Executed payment with id {paymentId}")
+        await database_client.modify_paypal_transaction(paymentId,'executed')
+        
+        initiate = await database_client.approve_initiated_transactions(paymentId)
+        if initiate:
+            logger.info(f"Approved initiated transactions with buyer payment id {paymentId}")
+        else:
+            raise HTTPException(status_code=500,detail="Failed to approve transaction. ")
+        
+        transactions = await database_client.get_approved_transactions(paymentId)
+        
+        batch_id = str(uuid.uuid4)
+        for transaction in transactions:
+            seller_email = await database_client.get_user(transaction['seller_id'])
+            seller_email = seller_email['email']
+            buyer_email = await database_client.get_user(transaction['buyer_id'])
+            buyer_email = buyer_email['email']
+            creator_email = await database_client.get_creator(transaction['collection_id'])
+            creator_email = await database_client.get_user(creator_email)
+            creator_email = creator_email['email']
+            payout_info = {
+                    "batch_id":batch_id,
+                    "recipient_email":seller_email,
+                    "amount":(transaction['cost']*transaction['number']) * ( 100 - ROYALTY + FEES) / 100,
+                    "currency":"USD",
+                    "note": f"Payment to {seller_email} for TRS of collection {transaction['collection_name']}. "
+                }
+            await paypal.payout(payout_info)
+            royalty_payout_info = payout_info = {
+                    "batch_id":batch_id,
+                    "recipient_email":seller_email,
+                    "amount":(transaction['cost']*transaction['number']) * (ROYALTY) / 100,
+                    "currency":"USD",
+                    "note": f"Royalty for {creator_email} for trade of TRS of collection {transaction['collection_name']}. "
+                }
+            data = {
+                "transaction_number":transaction['transaction_number'],
+                "buyer_id": transaction['buyer_id'],
+                "seller_id": transaction['seller_id'],
+                "seller_email": seller_email,
+                "buyer_email":buyer_email,
+                "trs_count": transaction['number']
+            }
+            await transaction_module.transaction(data)
+            
+            seller_wallet  = await database_client.get_wallet_by_collection(transaction['seller_id'],transaction['collection_name'])
+            
+            req_trs = seller_wallet[0:transaction['number']-1]
+            
+            for trs in req_trs: 
+                database_client.transfer_asset(transaction['buyer_id'],trs['trs_id'])
 
-@app.get('/paypal/payout')
-async def payout(data: dict):
-    """
-    This function is responsible for processing a payout on PayPal.
-
-    Parameters:
-    data (dict): A dictionary containing the necessary data for processing a payout.
-        The dictionary should contain the following keys:
-        - recipient_type: The type of recipient (e.g., email, phone, bank).
-        - amount: The amount of the payout.
-        - currency: The currency of the payout.
-        - note: An optional note for the payout.
-        - sender_item_id: An optional sender item ID for the payout.
-        - receiver: The recipient's details (e.g., email, phone, bank details).
-
-    Returns:
-    dict: A dictionary containing a success message.
-        - message (str): "Payout successful."
-
-    Raises:
-    HTTPException: If an error occurs during the payout process.
-    """
-    try:
-        response = await paypal.payout(data)
-        return {"message": "Payout successful.","response": response}
-    except Exception as e:    
-        raise HTTPException(status_code=500, detail=str(e))
-   
+            
+        finalize = await database_client.finish_approved_transactions(paymentId)
+        logger.info(f"Completed Trade with buyer transaction number {paymentId}")
+        return {"message": f"Completed Trade with buyer transaction number {paymentId}"}
+            
     
-@app.post('/transaction/create')
-async def transaction(data: BlockChainTransactionData):
-    
-    return 
+        
+    except Exception as error:
+        logger.error(f"Error executing transaction {paymentId} {error}")
+        raise HTTPException(status_code=500, detail=str(error)) 
 
+
+@app.get('/wallet/get',dependencies=[Depends(get_current_user)])
+async def trade_create(user : User = Depends(get_current_user)):
+    wallet = await database_client.get_wallet(user.id)
+    return wallet 

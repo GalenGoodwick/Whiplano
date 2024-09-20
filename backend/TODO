@@ -1,10 +1,6 @@
-Add paypal transactions to the database in main.py for execute, create etc. 
+
 Make transactions end point for creating and transferring assets, saving it to the database, and the blockchain. 
-KYC and verification
-Authentication
+
 Marketplace
+
 inapp chat
-
-
-Implement the JWT, creation of JWT, etc. 
-Implement connection with Google/Apple. 
