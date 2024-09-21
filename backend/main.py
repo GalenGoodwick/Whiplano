@@ -353,7 +353,4 @@ async def trade_create(user : User = Depends(get_current_user)):
     return wallet 
 
 
-@app.get('/test')
-async def test():
-    result = await nft_mint()
-    
+    s
