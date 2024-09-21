@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException, Query,Depends,Form,status
+from fastapi import FastAPI, HTTPException, Query,Depends,Form,status, Request
 from backend import database, mint, paypal, utils
 from backend import transaction as transaction_module
 from typing import Optional
 from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Request, HTTPException
+
 from fastapi.responses import RedirectResponse
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -26,10 +26,10 @@ from backend.utils import get_current_user,create_auth_token,verify_token,User,T
 app = FastAPI()
 whiplano_id = '0000-0000-0000'
 database_client = database.DatabaseManager(
-    host='localhost',
-    user='root',
+    host=os.getenv("DATABASE_HOST"),
+    user=os.getenv("DATABASE_USERNAME"),
     password=os.getenv("DATABASE_PASSWORD"),
-    database ='whiplano'
+    database =os.getenv("DATABASE_NAME")
 )
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
@@ -351,3 +351,9 @@ async def execute_payment(
 async def trade_create(user : User = Depends(get_current_user)):
     wallet = await database_client.get_wallet(user.id)
     return wallet 
+
+
+@app.get('/test')
+async def test():
+    result = await nft_mint()
+    
