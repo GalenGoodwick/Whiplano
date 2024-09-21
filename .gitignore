@@ -3,4 +3,6 @@ node_modules
 central_wallet.json
 *.env
 *temp.py
+venv
+*.venv
 
