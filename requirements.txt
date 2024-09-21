@@ -37,3 +37,4 @@ uvicorn
 pillow
 urllib3
 requests
+bcrypt
