@@ -22,13 +22,16 @@ load_dotenv()
 
 database_password = os.getenv("DATABASE_PASSWORD")
 central_key = os.getenv('CENTRAL_WALLET_PUBKEY')
-database= DatabaseManager(
-    host='localhost',
-    user='root',
+database = DatabaseManager(
+    host=os.getenv("DATABASE_HOST"),
+    user=os.getenv("DATABASE_USERNAME"),
     password=os.getenv("DATABASE_PASSWORD"),
-    database ='whiplano'
+    database =os.getenv("DATABASE_NAME")
 )
-
+from backend.logging_config import logging_config  # Import the configuration file
+import logging.config
+logging.config.dictConfig(logging_config)
+logger = logging.getLogger("mint")
 
 # The wallet it is to be minted to, in this case the central wallet. 
 class NFTMinter:
@@ -215,23 +218,23 @@ s
         central_key = "9QVeLdhziTQBFSTNWQxbzhwzQ"
         try:
             os.remove('./cache.json')
-            print("Removed stagnant cache")
+            logger.info("Removed stagnant cache")
         except:
-            print("No cache to remove")
+            logger.info("No cache to remove")
         
-        print("Generating metadata")
+        logger.info("Generating metadata")
         self.metadata_generator(collection_name,collection_description,collection_symbol,uri,1)
-        print("Generating images")
+        logger.info("Generating images")
         self.image_duplicator(uri,1,collection_name)
-        print("Editing config")
+        logger.info("Editing config")
         self.edit_config(collection_symbol,central_key,1)
-        print("Uploading to central")
+        logger.info("Uploading to central")
         self.run_command(f'sugar upload -k ./central_wallet.json ./collections/{collection_name}')
-        print("Deploying")
+        logger.info("Deploying")
         self.run_command("sugar deploy")
-        print("Verifying")
+        logger.info("Verifying")
         self.run_command("sugar verify")
-        print("Minting")
+        logger.info("Minting")
         mint_addresses = []
     
         e = self.run_command("sugar mint")
@@ -244,22 +247,19 @@ s
                 mint_addresses.append(mint_address)
                 break
         
-        print(mint_address)
-        print("Minted the NFT")
-        time.sleep(5)
+        logger.info(f"Minted the NFT with mint address{mint_address}")
+        
     
-        token_account_address = await (get_token_account_address(mint_addresses[0]))
-        print("Token account address: ",token_account_address)
-        print(type(token_account_address))
-        await database.add_trs(number,mint_addresses[0],collection_name,token_account_address,creator_id)
+        
+        await database.add_trs(number,mint_addresses[0],collection_name,creator_id)
         
         
-        print("Cleaning up")
+        logger.info("Cleaning up")
         try:
             os.remove('./cache.json')
             shutil.rmtree(f'./collections/{collection_name}')
         except Exception as e:
-            print(e)
+            logger.info(e)
 
 
 async def mint_nft(data):

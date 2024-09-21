@@ -21,11 +21,11 @@ logger = logging.getLogger("paypal")
 PAYPAL_API_URL = 'https://api-m.sandbox.paypal.com/v1/payments/payment'
 PAYPAL_CLIENT_ID = os.getenv('PAYPAL_CLIENT_ID')
 PAYPAL_CLIENT_SECRET = os.getenv('PAYPAL_CLIENT_SECRET')
-database = DatabaseManager(
-    host='localhost',
-    user='root',
+database_client = DatabaseManager(
+    host=os.getenv("DATABASE_HOST"),
+    user=os.getenv("DATABASE_USERNAME"),
     password=os.getenv("DATABASE_PASSWORD"),
-    database ='whiplano'
+    database =os.getenv("DATABASE_NAME")
 )
 
 def get_access_token():
@@ -76,7 +76,7 @@ class PayPal:
             }
             async with session.post(PAYPAL_API_URL, auth=auth, headers=headers, json=data) as response:
                 response_data = await response.json()
-            
+                
                 logger.info(f"Created payment with id {response_data['id']},description : {response_data['transactions'][0]['description']}")
                 return response_data
 
@@ -93,7 +93,7 @@ class PayPal:
             }
             async with session.post(execute_url, auth=auth, headers=headers, json=data) as response:
                 response_data = await response.json()
-                #print(response_data)
+                
                 return response_data
 
 class PayPalPayouts:
@@ -131,10 +131,10 @@ class PayPalPayouts:
             async with session.post(self.payout_url, headers=headers, data=json.dumps(payout_data)) as response:
                 response_data = await response.json()
                 if response.status == 201:  # 201 Created
-                    print("Payout successfully sent!")
+                    logger.info("Payout successfully sent!")
                     return response_data
                 else:
-                    print(f"Failed to send payout: {response_data}")
+                    logger.error(f"Failed to send payout: {response_data}")
                     return response_data
 
 async def verify_transaction(transaction):
@@ -142,8 +142,9 @@ async def verify_transaction(transaction):
 
 async def create_payment(data):
     paypal = PayPal()
-    resp =  await paypal.create_payment(data['amount'], data['return_url'], data['cancel_url'], data['description'])
     
+    resp =  await paypal.create_payment(data['amount'], data['return_url'], data['cancel_url'], data['description'])
+    logger.info(f"Payment Created successfully with description {data['description']}")
     return resp
 
 async def execute_payment(payment_id, payer_id):

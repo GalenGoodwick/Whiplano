@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -13,23 +14,34 @@ import os
 import requests
 import logging
 import uuid
+from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES
+from backend.logging_config import logging_config  # Import the configuration file
+import logging.config
 
 ROYALTY  = 2.5
 FEES = 2.5
-# Initialize logging
-from backend.logging_config import logging_config  # Import the configuration file
-import logging.config
+
+
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("main")
 
-from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins. Change this to specific domains for security.
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, etc.). Adjust as needed.
+    allow_headers=["*"],  # Allows all headers. Adjust as needed.
+)
+
+
 whiplano_id = '0000-0000-0000'
 database_client = database.DatabaseManager(
-    host='localhost',
-    user='root',
+    host=os.getenv("DATABASE_HOST"),
+    user=os.getenv("DATABASE_USERNAME"),
     password=os.getenv("DATABASE_PASSWORD"),
-    database ='whiplano'
+    database =os.getenv("DATABASE_NAME")
 )
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
@@ -233,44 +245,60 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
     wallets = {}
     for i in data.seller_id:
         wallets[i] = await database_client.get_wallet_by_collection(i,data.collection_name)
+    
+    
     trs_count = 0
     for i in wallets:
+        
         trs_count += len(wallets[i])
+        
+        
     if trs_count < data.number:
         logger.info("Not enough TRS being offered by the sellers. ")
         raise HTTPException(status_code=400, detail="Insufficient funds")
     
     else:
+        logger.info(f"Creating buy order for {data.number} TRS of {data.collection_name}. Price per TRS = {data.number}, Total Amount = {(data.number*data.cost)}")
+        
         description = f"Buy order for {data.number} TRS of {data.collection_name}. Price per TRS = {data.number}, Total Amount = {(data.number*data.cost)}"
         data_transac = {
-            'collection_name':(data.number)*(data.cost),
+            'amount':data.number*data.cost,
             'cancel_url' : "https://example.com",
             "description": description,
-            "return_url":"localhost:8000/trade/execute_payment"   
+            "return_url":"http://localhost:8000/trade/execute_payment"   
         }
         try:
             resp = await paypal.create_payment(data_transac)
-            await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id)
+          
+            await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id,data.number*data.cost)
+            
             logger.info(f"Payment created succesfully with id {resp['id']}")
+            
             buyer_transaction_number = resp['id']
             required_transactions = {}
             required_number = data.number
+            
+            
             for seller_id in data.seller_id:
                 if len(wallets[seller_id]) >= required_number:
+                    
                     required_transactions[seller_id] = wallets[seller_id][0:required_number-1]
+                
                 else:
                     required_transactions[seller_id] = wallets[seller_id]
                     required_number -= len(wallets[seller_id])
-            
+                 
             for seller_id in required_transactions:
-                await database_client.add_transaction(buyer_transaction_number,data.collection_name,buyer.id,seller_id,data.cost,len(required_transactions['seller_id']))
-                    
+                
+                await database_client.add_transaction(buyer_transaction_number,data.collection_name,buyer.id,seller_id,data.cost,len(required_transactions[seller_id]))
+                
                     
 
-            return {"message": "Payment created successful.",
+            return {"message": "Payment created successfully.",
                     'approval_url': resp['links'][1]['href']}
             
         except Exception as e:
+            
             raise HTTPException(status_code=500, detail=str(e))
         
         return

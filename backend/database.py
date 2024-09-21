@@ -260,7 +260,7 @@ class DatabaseManager:
             logger.error(f"Error: {e}")
             return None
     
-    async def add_transaction(self, buyer_transaction_number, trs_id, buyer_id, seller_id, amount, number):
+    async def add_transaction(self, buyer_transaction_number,collection_name, buyer_id, seller_id, cost, number):
         """
         Adds a new transaction record to the database.
 
@@ -282,10 +282,11 @@ class DatabaseManager:
         if not self.connection:
             logger.critical('No Database Connection')
         try:
+            
             cursor = self.connection.cursor()
             transaction_number = str(uuid.uuid4())
-            query = f"INSERT INTO transactions (buyer_transaction_number,transaction_number,trs_id,buyer_id,seller_id,amount,number) VALUES (%s,%s, %s,%s,%s,%s)"
-            values = (buyer_transaction_number,transaction_number, trs_id, buyer_id, seller_id, amount, number)
+            query = f"INSERT INTO transactions (buyer_transaction_id,collection_name,transaction_number,buyer_id,seller_id,cost,number) VALUES (%s,%s,%s, %s,%s,%s,%s)"
+            values = (buyer_transaction_number,collection_name,transaction_number, buyer_id, seller_id, cost, number)
             cursor.execute(query, values)
             self.connection.commit()
             logger.info(f"Transaction {transaction_number} and buyer transaction number {buyer_transaction_number} added successfully")
@@ -349,7 +350,7 @@ class DatabaseManager:
             self.connection.close()
             logger.info("Database connection closed")
             
-    async def add_trs(self,number, mint_address, collection_name, token_account_address,creator_id):
+    async def add_trs(self,number, mint_address, collection_name,creator_id):
         """
         Adds a new token to the database.
 
@@ -371,11 +372,13 @@ class DatabaseManager:
             return
         try:
             cursor = self.connection.cursor()
+            creator_id = creator_id.id
             for i in range(number):
                 trs_id = uuid.uuid4().int
-                query = f"INSERT INTO collections (trs_id, collection_name, mint_address, token_account_address,creator_id) VALUES (%s, %s, %s, %s,%s)"
+                query = f"INSERT INTO collections (trs_id, collection_name, mint_address,creator_id) VALUES (%s, %s, %s,%s)"
                 
-                values =  (str(trs_id), collection_name, str(mint_address), str(token_account_address),str(creator_id))
+                
+                values =  (str(trs_id), collection_name, str(mint_address),str(creator_id))
                 cursor.execute(query, values)
                 self.connection.commit()
                 logger.info(f"Token {trs_id} ; {str(i+1)} of collection {collection_name} added successfully")
@@ -485,7 +488,7 @@ class DatabaseManager:
             return None
         try:
             cursor = self.connection.cursor(dictionary=True)
-            query = "UPDATE transacations SET status = 'approved' where buyer_id = %s AND status = 'initiated'"
+            query = "UPDATE transactions SET status = 'approved' where buyer_id = %s AND status = 'initiated'"
             cursor.execute(query, (buyer_transaction_id, ))
             result = cursor.fetchall()
             logger.info(f"Approved initiated transactions for buyer {buyer_transaction_id}")
@@ -502,7 +505,7 @@ class DatabaseManager:
             return None
         try:
             cursor = self.connection.cursor(dictionary=True)
-            query = "UPDATE transacations SET status = 'finished' where buyer_id = %s AND status = 'initiated'"
+            query = "UPDATE transactions SET status = 'finished' where buyer_id = %s AND status = 'initiated'"
             cursor.execute(query, (buyer_transaction_id, ))
             result = cursor.fetchall()
             logger.info(f"Finished approved transactions for buyer {buyer_transaction_id}")
