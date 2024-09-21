@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -13,23 +14,34 @@ import os
 import requests
 import logging
 import uuid
+from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES
+from backend.logging_config import logging_config  # Import the configuration file
+import logging.config
 
 ROYALTY  = 2.5
 FEES = 2.5
-# Initialize logging
-from backend.logging_config import logging_config  # Import the configuration file
-import logging.config
+
+
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("main")
 
-from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins. Change this to specific domains for security.
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, etc.). Adjust as needed.
+    allow_headers=["*"],  # Allows all headers. Adjust as needed.
+)
+
+
 whiplano_id = '0000-0000-0000'
 database_client = database.DatabaseManager(
-    host='localhost',
-    user='root',
+    host=os.getenv("DATABASE_HOST"),
+    user=os.getenv("DATABASE_USERNAME"),
     password=os.getenv("DATABASE_PASSWORD"),
-    database ='whiplano'
+    database =os.getenv("DATABASE_NAME")
 )
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')

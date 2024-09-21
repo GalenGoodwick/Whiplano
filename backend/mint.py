@@ -22,11 +22,11 @@ load_dotenv()
 
 database_password = os.getenv("DATABASE_PASSWORD")
 central_key = os.getenv('CENTRAL_WALLET_PUBKEY')
-database= DatabaseManager(
-    host='localhost',
-    user='root',
+database = DatabaseManager(
+    host=os.getenv("DATABASE_HOST"),
+    user=os.getenv("DATABASE_USERNAME"),
     password=os.getenv("DATABASE_PASSWORD"),
-    database ='whiplano'
+    database =os.getenv("DATABASE_NAME")
 )
 from backend.logging_config import logging_config  # Import the configuration file
 import logging.config

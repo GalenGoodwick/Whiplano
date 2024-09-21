@@ -23,10 +23,10 @@ email_address = "danielvincent1718@gmail.com"
 load_dotenv()  # Load environment variables
 email_password = os.getenv("GOOGLE_EMAIL_PASSWORD")
 database_client = database.DatabaseManager(
-    host='localhost',
-    user='root',
+    host=os.getenv("DATABASE_HOST"),
+    user=os.getenv("DATABASE_USERNAME"),
     password=os.getenv("DATABASE_PASSWORD"),
-    database ='whiplano'
+    database =os.getenv("DATABASE_NAME")
 )
 
 SECRET_KEY = os.getenv("SECRET_KEY")
