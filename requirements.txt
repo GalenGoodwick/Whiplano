@@ -35,3 +35,4 @@ websockets==11.0.3
 yarl==1.11.1
 uvicorn
 pillow
+urllib3
