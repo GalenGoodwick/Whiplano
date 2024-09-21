@@ -39,3 +39,4 @@ urllib3
 requests
 jwt
 bcrypt
+pydantic[email]
