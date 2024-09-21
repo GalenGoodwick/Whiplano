@@ -33,3 +33,5 @@ starlette==0.38.5
 typing_extensions==4.12.2
 websockets==11.0.3
 yarl==1.11.1
+uvicorn
+pillow
