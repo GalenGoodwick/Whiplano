@@ -25,13 +25,13 @@ logger = logging.getLogger("main")
 from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES,SERVER_URL
 app = FastAPI()
 whiplano_id = '0000-0000-0000'
+
 database_client = database.DatabaseManager(
     host=os.getenv("DATABASE_HOST"),
     user=os.getenv("DATABASE_USERNAME"),
     password=os.getenv("DATABASE_PASSWORD"),
     database =os.getenv("DATABASE_NAME")
 )
-
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 REDIRECT_URI = SERVER_URL + "/callback/google"
@@ -347,7 +347,17 @@ async def execute_payment(
         raise HTTPException(status_code=500, detail=str(error)) 
 
 
-@app.get('/wallet/get',dependencies=[Depends(get_current_user)])
+@app.get('/wallet/get',dependencies=[Depends(get_current_user)],description="Returns a formatted wallet, as a json with created trs, trs on marketplace, and trs with artisan rights.")
 async def trade_create(user : User = Depends(get_current_user)):
-    wallet = await database_client.get_wallet(user.id)
+    wallet = await database_client.get_wallet_formatted(user.id)
     return wallet 
+
+@app.post('/marketplace/place',dependencies=[Depends(get_current_user)])
+async def marketplace_add(user : User = Depends(get_current_user)):
+    wallet = await database_client.get_wallet_formatted(user.id)
+    for i in wallet: 
+        if (i['artisan'] == 1): 
+            raise HTTPException(status_code=400,detail="" )
+    return
+    
+

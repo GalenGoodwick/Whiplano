@@ -3,6 +3,7 @@ from mysql.connector import Error
 import uuid
 from backend.logging_config import logging_config  # Import the configuration file
 import logging.config
+from fastapi import FastAPI, HTTPException
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("database")
 
@@ -31,10 +32,12 @@ class DatabaseManager:
                 password=password,
                 database=database
             )
+            
             if self.connection.is_connected():
                 logger.info("Successfully connected to the database")
         except Error as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
             self.connection = None
 
     async def add_user(self, username, email, password_hash):
@@ -57,6 +60,7 @@ class DatabaseManager:
             logger.critical("No database connection")
             return
         try:
+            logger.info("trying for cursor")
             cursor = self.connection.cursor()
             user_id = str(uuid.uuid4())
             
@@ -69,6 +73,8 @@ class DatabaseManager:
             
         except Error as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+             
         finally:
             cursor.close()
 
@@ -93,8 +99,10 @@ class DatabaseManager:
             result = cursor.fetchone()
             return result
         except Error as e:
+            
             logger.error(f"Error: {e}")
-            return None
+            raise HTTPException(status_code=400, detail=str(e))
+            
         finally:
             cursor.close()
     
@@ -121,7 +129,8 @@ class DatabaseManager:
             return result
         except Error as e:
             logger.error(f"Error: {e}")
-            return None
+            raise HTTPException(status_code=400, detail=str(e))
+            
         finally:
             cursor.close()
             
@@ -169,6 +178,7 @@ class DatabaseManager:
             logger.info("User updated successfully")
         except Error as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
         finally:
             cursor.close()
 
@@ -199,6 +209,7 @@ class DatabaseManager:
             logger.info(f"User {user_id} deleted successfully")
         except Error as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
         finally:
             cursor.close()
 
@@ -231,6 +242,7 @@ class DatabaseManager:
             logger.info(f"Token {trs_id} added to {user_id}'s wallet.")
         except Error as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
         
     async def get_owner(self, trs_id):
         """
@@ -258,6 +270,7 @@ class DatabaseManager:
             return result
         except Error as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
             return None
     
     async def add_transaction(self, buyer_transaction_number, trs_id, buyer_id, seller_id, amount, number):
@@ -292,6 +305,7 @@ class DatabaseManager:
             
         except Error as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
     async def modify_transaction(self, transaction_number,status):
         if not self.connection:
             logger.critical('No Database Connection')
@@ -304,7 +318,7 @@ class DatabaseManager:
             logger.info(f"Transaction {transaction_number} modified successfully to {status}")
         except Error as e:
             logger.error(f"Error: {e}")
-          
+            raise HTTPException(status_code=400, detail=str(e))
     async def transfer_asset(self, user_id, trs_id):
         """
         Transfers an asset (token) from the current owner to a new user in the database.
@@ -330,6 +344,7 @@ class DatabaseManager:
             logger.info(f"Transferred TRS {trs_id} to {user_id}.")
         except Error as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
     
     
     async def close_connection(self):
@@ -383,6 +398,7 @@ class DatabaseManager:
                 
         except Error as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
 
     async def add_paypal_transaction(self, transaction_number, buyer_id, seller_id, amount):
         """
@@ -414,6 +430,7 @@ class DatabaseManager:
             logger.info(f"Added PayPal transaction with transaction number {transaction_number}")
         except Error as e:
             logger.error(f"Error adding paypal transaction: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
             
     async def modify_paypal_transaction(self,transaction_id,status):
         if not self.connection:
@@ -426,6 +443,7 @@ class DatabaseManager:
             logger.info(f"Updated paypal transaction {transaction_id} to {status} ")
         except Error as e:
             logger.error(f"Error updating paypal transaction : {e}")
+            raise HTTPException(status_code=400, detail=str(e))
     async def get_wallet(self, user_id):
         """
         Retrieves the wallet of a user from the database.
@@ -457,6 +475,7 @@ class DatabaseManager:
                 return result
             except Error as e:
                 logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
                 return None
             finally: 
                 cursor.close()
@@ -474,6 +493,7 @@ class DatabaseManager:
             return result
         except Exception as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
             return None
         finally:
             cursor.close()
@@ -492,6 +512,7 @@ class DatabaseManager:
             return True
         except Exception as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
             return None
         finally:
             cursor.close()
@@ -509,6 +530,7 @@ class DatabaseManager:
             return True
         except Exception as e:
             logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
             return None
         finally:
             cursor.close()
@@ -530,10 +552,11 @@ class DatabaseManager:
                 return result
             except Error as e:
                 logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
                 return None
             finally:
                 cursor.close()
-                
+       
     async def get_mint_address(self,collection_name):
         if not self.connection:
             logger.critical("No Database connection.")
@@ -547,6 +570,8 @@ class DatabaseManager:
                 return result
             except Error as e:
                 logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+                
                 return None
             finally:
                 cursor.close()
@@ -566,7 +591,51 @@ class DatabaseManager:
                 return result['creator_id']
             except Error as e:
                 logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
                 return None
             finally:
                 cursor.close()
         return 
+    
+    async def get_wallet_formatted(self,user_id):
+        if not self.connection:
+            logger.critical("No Database connection.")
+        elif not await self.get_user(user_id):
+            logger.info(f"User not found {user_id}")
+            return None
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+                query = "SELECT trs_id,collection_name,creator,artisan,marketplace FROM trs WHERE user_id = %s"
+                cursor.execute(query, (user_id,))
+                result = cursor.fetchall()
+                
+                created_trs = []
+                artisan_trs = []
+                marketplace_trs = []
+                none_trs = []
+                for i in result: 
+                    if i['creator'] == i['user_id']:
+                        created_trs.append(i)
+                    if i['marketplace_trs'] == 1:
+                        marketplace_trs.append(i)
+                    elif i['artisan_trs'] == 1:
+                        artisan_trs.append(i)
+                    
+                    none_trs.append(i)
+                        
+                
+                logger.info(f"Returning formatted wallet for user {user_id} ")
+                return {
+                    "created_trs": created_trs,
+                    "artisan_trs":artisan_trs,
+                    "marketplace_trs":marketplace_trs,
+                    "trs": none_trs
+                }
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+                
+            finally: 
+                cursor.close()
+         
