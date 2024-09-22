@@ -109,9 +109,9 @@ async def signup(user: SignupRequest):
 
     # Hash the password
     hashed_password = utils.hash_password(user.password)
-    
+    logger.info("Hashed password")
     user_id = await database_client.add_user(user.username,user.email,hashed_password)
-
+    logger.info("Added user to the database. ")
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_auth_token(data={"sub": user.email}, expires_delta=access_token_expires)
@@ -351,6 +351,3 @@ async def execute_payment(
 async def trade_create(user : User = Depends(get_current_user)):
     wallet = await database_client.get_wallet(user.id)
     return wallet 
-
-
-    s
