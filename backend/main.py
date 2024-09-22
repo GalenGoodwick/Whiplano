@@ -76,12 +76,36 @@ class TradeCreateData(BaseModel):
 
 @app.get("/")
 async def root():
+    """
+    This function is the root endpoint of the application. It checks if the application is running.
+
+    Parameters:
+    None
+
+    Returns:
+    dict: A dictionary containing a success message.
+        - message (str): "App is running."
+    """
     logger.info("App is running.")
     return {"message": "App is running."}
 
 @app.post("/login", response_model=Token)
 async def login(email: str = Form(...), password: str = Form(...)):
-    
+    """
+    Authenticates a user using their email and password.
+
+    Parameters:
+    email (str): The email of the user.
+    password (str): The password of the user.
+
+    Returns:
+    dict: A dictionary containing the access token and token type.
+        - access_token (str): The access token for the user.
+        - token_type (str): The type of the access token (e.g., "bearer").
+
+    Raises:
+    HTTPException: If the email or password is incorrect.
+    """
     user = await authenticate_user(email, password)
     if not user:
         raise HTTPException(
@@ -98,6 +122,24 @@ async def login(email: str = Form(...), password: str = Form(...)):
 
 @app.post('/signup', response_model=Token)
 async def signup(user: SignupRequest):
+    """
+    This function handles the signup process for a new user. It checks if the user already exists,
+    hashes the password, adds the user to the database, and creates an access token.
+
+    Parameters:
+    user (SignupRequest): A Pydantic model containing the necessary data for signup.
+        - username (str): The username of the user.
+        - email (str): The email of the user.
+        - password (str): The password of the user.
+
+    Returns:
+    dict: A dictionary containing the access token and token type.
+        - access_token (str): The access token for the user.
+        - token_type (str): The type of the access token (e.g., "bearer").
+
+    Raises:
+    HTTPException: If an error occurs during the signup process.
+    """
     # Check if the user already exists
     existing_user = await database_client.get_user_by_email(user.email)
     if existing_user:
@@ -228,6 +270,7 @@ async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
 @app.post('/trade/create',dependencies=[Depends(get_current_user)])
 async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
     wallets = {}
@@ -281,19 +324,37 @@ async def execute_payment(
     paymentId: Optional[str] = Query(None), 
     PayerID: Optional[str] = Query(None),
 ):
+    """
+    This function executes a PayPal payment with the given payment ID and Payer ID.
+    It retrieves the payment details, modifies the payment status in the database,
+    approves initiated transactions, retrieves approved transactions, and processes
+    the transactions by executing payouts, updating the transaction records, and
+    transferring assets between users.
+
+    Parameters:
+    paymentId (str, optional): The ID of the PayPal payment.
+    PayerID (str, optional): The ID of the PayPal Payer.
+
+    Returns:
+    dict: A dictionary containing a success message if the payment is executed successfully.
+        - message (str): "Completed Trade with buyer transaction number {paymentId}"
+
+    Raises:
+    HTTPException: If an error occurs during the payment execution.
+    """
     try:
         resp = await paypal.execute_payment(paymentId,PayerID)
         logger.info(f"Executed payment with id {paymentId}")
         await database_client.modify_paypal_transaction(paymentId,'executed')
-        
+
         initiate = await database_client.approve_initiated_transactions(paymentId)
         if initiate:
             logger.info(f"Approved initiated transactions with buyer payment id {paymentId}")
         else:
             raise HTTPException(status_code=500,detail="Failed to approve transaction. ")
-        
+
         transactions = await database_client.get_approved_transactions(paymentId)
-        
+
         batch_id = str(uuid.uuid4)
         for transaction in transactions:
             seller_email = await database_client.get_user(transaction['seller_id'])
@@ -327,37 +388,84 @@ async def execute_payment(
                 "trs_count": transaction['number']
             }
             await transaction_module.transaction(data)
-            
+
             seller_wallet  = await database_client.get_wallet_by_collection(transaction['seller_id'],transaction['collection_name'])
-            
+
             req_trs = seller_wallet[0:transaction['number']-1]
-            
+
             for trs in req_trs: 
                 database_client.transfer_asset(transaction['buyer_id'],trs['trs_id'])
-        
-            
+
+
         finalize = await database_client.finish_approved_transactions(paymentId)
         logger.info(f"Completed Trade with buyer transaction number {paymentId}")
         return {"message": f"Completed Trade with buyer transaction number {paymentId}"}
-            
-    
-        
+
+
+
     except Exception as error:
         logger.error(f"Error executing transaction {paymentId} {error}")
-        raise HTTPException(status_code=500, detail=str(error)) 
+        raise HTTPException(status_code=500, detail=str(error))
 
 
-@app.get('/wallet/get',dependencies=[Depends(get_current_user)],description="Returns a formatted wallet, as a json with created trs, trs on marketplace, and trs with artisan rights.")
-async def trade_create(user : User = Depends(get_current_user)):
+@app.get('/wallet/get', dependencies=[Depends(get_current_user)], description="Returns a formatted wallet, as a JSON with created TRS, TRS on marketplace, and TRS with artisan rights.")
+async def trade_create(user: User = Depends(get_current_user)):
+    """
+    This function retrieves and formats the wallet of the current user. The wallet includes
+    the created TRS, TRS on the marketplace, and TRS with artisan rights.
+
+    Parameters:
+    user (User): The current user. This parameter is obtained from the 'get_current_user' function.
+
+    Returns:
+    dict: A dictionary representing the formatted wallet. The dictionary contains the following keys:
+        - created_trs: A list of TRS created by the user.
+        - trs_on_marketplace: A list of TRS on the marketplace.
+        - trs_with_artisan_rights: A list of TRS with artisan rights.
+    """
     wallet = await database_client.get_wallet_formatted(user.id)
-    return wallet 
+    return wallet
+
+
+@app.get('/marketplace')
+async def marketplace():
+    """
+    WORK IN PROGRESS
+    """
+    trs_on_marketplace = await database_client.get_all_trs_on_marketplace()
+    return trs_on_marketplace
+
 
 @app.post('/marketplace/place',dependencies=[Depends(get_current_user)])
-async def marketplace_add(user : User = Depends(get_current_user)):
+async def marketplace_add(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
+    """
+    This function adds TRS of a specific collection to the marketplace.
+
+    Parameters:
+    collection_name (str): The name of the collection.
+    number (int): The number of TRS to be added to the marketplace.
+    user (User): The user making the request. This parameter is obtained from the 'get_current_user' function.
+
+    Returns:
+    dict: A dictionary containing a success message if the TRS are added to the marketplace successfully.
+        - message (str): "TRS added to marketplace successfully."
+    """
     wallet = await database_client.get_wallet_formatted(user.id)
+    req_wallet = []
     for i in wallet: 
-        if (i['artisan'] == 1): 
-            raise HTTPException(status_code=400,detail="" )
+        if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
+            req_wallet.append(i)
+
+    if len(req_wallet) >= number:
+        for i in req_wallet:
+            price = 1000
+            await database_client.add_trs_to_marketplace(i['trs_id'],collection_name, user.id,price)
+
+        return {"message": "TRS added to marketplace successfully."}
+    else:
+        return {"message": F"Insufficient TRS of {collection_name} in wallet."}
+
     return
-    
+
+
 

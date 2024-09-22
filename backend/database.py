@@ -10,20 +10,19 @@ logger = logging.getLogger("database")
 class DatabaseManager:
     def __init__(self, host, user, password, database):
         """
-        Initialize a new instance of the DatabaseManager class.
-
-        This method establishes a connection to a MySQL database using the provided host, user, password, and database.
-        If the connection is successful, it prints a success message. If an error occurs during the connection, it prints
-        the error message and sets the connection to None.
+        Initializes a new instance of the DatabaseManager class.
 
         Parameters:
         - host (str): The host address of the MySQL database.
-        - user (str): The username for the MySQL database.
-        - password (str): The password for the MySQL database.
+        - user (str): The username for connecting to the MySQL database.
+        - password (str): The password for connecting to the MySQL database.
         - database (str): The name of the MySQL database.
 
         Returns:
         - None
+
+        Raises:
+        - HTTPException: If there is an error connecting to the MySQL database.
         """
         try:
             self.connection = mysql.connector.connect(
@@ -32,7 +31,7 @@ class DatabaseManager:
                 password=password,
                 database=database
             )
-            
+
             if self.connection.is_connected():
                 logger.info("Successfully connected to the database")
         except Error as e:
@@ -306,7 +305,21 @@ class DatabaseManager:
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
+    
     async def modify_transaction(self, transaction_number,status):
+        """
+    Modifies a transaction record in the database.
+
+    Parameters:
+    - transaction_number (str): The unique identifier of the transaction.
+    - status (str): The new status of the transaction.
+
+    Returns:
+    - None
+
+    Raises:
+    - HTTPException: If there is an error updating the transaction record.
+        """
         if not self.connection:
             logger.critical('No Database Connection')
         try:
@@ -480,7 +493,20 @@ class DatabaseManager:
             finally: 
                 cursor.close()
     
+    
     async def get_approved_transactions(self,buyer_transaction_id):
+        """
+    Retrieves the approved transactions for a buyer from the database.
+
+    Parameters:
+    buyer_transaction_id (str): The unique identifier of the buyer.
+
+    Returns:
+    list: A list of dictionaries representing the approved transactions. Each dictionary contains the transaction details.
+
+    Raises:
+    HTTPException: If there is an error connecting to the database or retrieving the transactions.
+    """
         if not self.connection:
             logger.critical("No Database connection.")
             return None
@@ -499,7 +525,20 @@ class DatabaseManager:
             cursor.close()
         
     
+    
     async def approve_initiated_transactions(self,buyer_transaction_id):
+        """
+    Retrieves the approved transactions for a buyer from the database.
+
+    Parameters:
+    buyer_transaction_id (str): The unique identifier of the buyer.
+
+    Returns:
+    list: A list of dictionaries representing the approved transactions. Each dictionary contains the transaction details.
+
+    Raises:
+    HTTPException: If there is an error connecting to the database or retrieving the transactions.
+    """
         if not self.connection:
             logger.critical("No Database connection.")
             return None
@@ -517,7 +556,22 @@ class DatabaseManager:
         finally:
             cursor.close()
         return
+
+
+    
     async def finish_approved_transactions(self,buyer_transaction_id):
+        """
+    Finishes the approved transactions for a buyer from the database.
+
+    Parameters:
+    buyer_transaction_id (str): The unique identifier of the buyer.
+
+    Returns:
+    bool: True if the transactions were successfully finished, False otherwise.
+
+    Raises:
+    HTTPException: If there is an error connecting to the database or finishing the transactions.
+    """
         if not self.connection:
             logger.critical("No Database connection.")
             return None
@@ -577,14 +631,27 @@ class DatabaseManager:
                 cursor.close()
         return 
     
+    
     async def get_creator(self,collection_name):
+        """
+    Retrieves the creator id of a collection from the database.
+
+    Parameters:
+    collection_name (str): The name of the collection.
+
+    Returns:
+    str: The creator id of the collection.
+
+    Raises:
+    HTTPException: If there is an error connecting to the database or retrieving the creator id.
+        """
         if not self.connection:
             logger.critical("No Database connection.")
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
                 query = "SELECT creator_id FROM collections WHERE collection_name = %s LIMIT 1"
-                
+
                 cursor.execute(query, (collection_name,))
                 result = cursor.fetchall()
                 logger.info(f"Retrieved Creator id of collection {collection_name}")
@@ -595,9 +662,26 @@ class DatabaseManager:
                 return None
             finally:
                 cursor.close()
-        return 
+        return
+    
     
     async def get_wallet_formatted(self,user_id):
+        """
+    Retrieves the wallet of a user from the database and formats it.
+
+    Parameters:
+    user_id (int): The unique identifier of the user.
+
+    Returns:
+    dict: A dictionary containing the formatted wallet. The dictionary has the following keys:
+        - "created_trs": A list of dictionaries representing the tokens created by the user.
+        - "artisan_trs": A list of dictionaries representing the tokens owned by artisans.
+        - "marketplace_trs": A list of dictionaries representing the tokens listed on the marketplace.
+        - "trs": A list of dictionaries representing all the tokens in the user's wallet.
+
+    Raises:
+    HTTPException: If there is an error connecting to the database or retrieving the user's wallet.
+        """
         if not self.connection:
             logger.critical("No Database connection.")
         elif not await self.get_user(user_id):
@@ -609,7 +693,7 @@ class DatabaseManager:
                 query = "SELECT trs_id,collection_name,creator,artisan,marketplace FROM trs WHERE user_id = %s"
                 cursor.execute(query, (user_id,))
                 result = cursor.fetchall()
-                
+
                 created_trs = []
                 artisan_trs = []
                 marketplace_trs = []
@@ -621,10 +705,10 @@ class DatabaseManager:
                         marketplace_trs.append(i)
                     elif i['artisan_trs'] == 1:
                         artisan_trs.append(i)
-                    
+
                     none_trs.append(i)
-                        
-                
+
+
                 logger.info(f"Returning formatted wallet for user {user_id} ")
                 return {
                     "created_trs": created_trs,
@@ -635,7 +719,52 @@ class DatabaseManager:
             except Error as e:
                 logger.error(f"Error: {e}")
                 raise HTTPException(status_code=400, detail=str(e))
-                
+
             finally: 
                 cursor.close()
-         
+                
+    
+    
+    async def add_trs_to_marketplace(trs_id, collection_name, user_id,bid_price):
+        """
+    Adds a token to the marketplace in the database.
+
+    Parameters:
+    trs_id (str): The unique identifier of the token.
+    collection_name (str): The name of the collection to which the token belongs.
+    user_id (int): The unique identifier of the user who is adding the token to the marketplace.
+    bid_price (float): The price at which the user is bidding to sell the token.
+
+    Returns:
+    dict: A dictionary containing a success message.
+
+    Raises:
+    HTTPException: If there is an error adding the token to the marketplace.
+        """
+        if not self.connection:
+            logger.critical("No Database connection.")
+        elif not await self.get_user(user_id):
+            logger.info(f"User not found {user_id}")
+            return None
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+                query = "INSERT INTO marketplace (trs_id,collection_name,order_type,buyer_seller_id,bid_price) VALUES (%s,%s,%s,%s,%s)"
+
+                cursor.execute(query, (trs_id,collection_name,'sell',user_id,bid_price))
+                self.connection.commit()
+                query = "UPDATE trs set marketplace = 1 WHERE trs_id = %s"
+                cursor.execute(query,(trs_id,))
+                self.connection.commit()
+                logger.info(f"Added trs {trs_id} of collection {collection_name} to the Marketplace")
+                return {'message':f"Added trs {trs_id} of collection {collection_name} to the Marketplace"}
+
+
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
+
+        return
