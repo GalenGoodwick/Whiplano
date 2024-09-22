@@ -22,7 +22,7 @@ import logging.config
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("main")
 
-from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES
+from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES,SERVER_URL
 app = FastAPI()
 whiplano_id = '0000-0000-0000'
 database_client = database.DatabaseManager(
@@ -34,7 +34,7 @@ database_client = database.DatabaseManager(
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-REDIRECT_URI = "http://localhost:8000/callback/google"
+REDIRECT_URI = SERVER_URL + "/callback/google"
 
 
 #BASE MODELS
@@ -246,7 +246,7 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
             'collection_name':(data.number)*(data.cost),
             'cancel_url' : "https://example.com",
             "description": description,
-            "return_url":"localhost:8000/trade/execute_payment"   
+            "return_url": SERVER_URL + "/trade/execute_payment"   
         }
         try:
             resp = await paypal.create_payment(data_transac)
@@ -334,7 +334,7 @@ async def execute_payment(
             
             for trs in req_trs: 
                 database_client.transfer_asset(transaction['buyer_id'],trs['trs_id'])
-
+        
             
         finalize = await database_client.finish_approved_transactions(paymentId)
         logger.info(f"Completed Trade with buyer transaction number {paymentId}")

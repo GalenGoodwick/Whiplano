@@ -19,6 +19,7 @@ smtp_server = "smtp.gmail.com"
 port = 465
 email_address = "danielvincent1718@gmail.com"
 
+SERVER_URL = "https://whiplano-1b8102db6480.herokuapp.com"
 
 load_dotenv()  # Load environment variables
 email_password = os.getenv("GOOGLE_EMAIL_PASSWORD")
