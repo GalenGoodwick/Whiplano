@@ -212,8 +212,8 @@ async def google_callback(request: Request):
         user = await database_client.get_user_by_email(idinfo['email'])
     except Exception as e:
         
-        #signup logic
-        return
+        return {"message":"User not registered, signing up by google hasn't been added yet."}
+    
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_auth_token(
         data={"sub": idinfo['email']}, expires_delta=access_token_expires
@@ -423,18 +423,39 @@ async def trade_create(user: User = Depends(get_current_user)):
         - trs_on_marketplace: A list of TRS on the marketplace.
         - trs_with_artisan_rights: A list of TRS with artisan rights.
     """
+    
     wallet = await database_client.get_wallet_formatted(user.id)
     return wallet
+
 
 
 @app.get('/marketplace')
 async def marketplace():
     """
-    WORK IN PROGRESS
+    Retrieves all TRS currently listed on the marketplace.
+
+    Returns:
+    list: A list of dictionaries, where each dictionary represents a TRS on the marketplace.
+          Each dictionary contains the following keys:
+          - trs_id: The unique identifier of the TRS.
+          - collection_name: The name of the collection to which the TRS belongs.
+          - owner_id: The unique identifier of the owner of the TRS.
+          - price: The price of the TRS on the marketplace.
+
     """
-    trs_on_marketplace = await database_client.get_all_trs_on_marketplace()
+    trs_on_marketplace = await database_client.get_marketplace_all()
     return trs_on_marketplace
 
+@app.get('/marketplace/collection')
+async def marketplace_collection(collection_name: str):
+    """
+    Retrieves all TRS of a specific collection currently listed on the marketplace.
+
+    Parameters:
+    collection_name (str): The name of the collection.
+    """
+    trs_on_marketplace = await database_client.get_marketplace_collection(collection_name)
+    return trs_on_marketplace
 
 @app.post('/marketplace/place',dependencies=[Depends(get_current_user)])
 async def marketplace_add(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:

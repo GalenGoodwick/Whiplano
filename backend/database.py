@@ -767,4 +767,76 @@ class DatabaseManager:
             finally: 
                 cursor.close()
 
-        return
+    async def get_marketplace_all(self):
+        """
+        Retrieves all the tokens listed on the marketplace from the database.
+
+        Parameters:
+        None
+
+        Returns:
+        list: A list of dictionaries representing the tokens listed on the marketplace. Each dictionary contains the following keys:
+            - "collection_name": The name of the collection to which the token belongs.
+            - "bid_price": The price at which the user is bidding to buy the token.
+            - "number_of_trs": The number of tokens listed on the marketplace for the given collection and bid price.
+
+        Raises:
+        HTTPException: If there is an error connecting to the database or retrieving the tokens from the marketplace.
+        """
+        if not self.connection:
+            logger.critical("No database connection.")
+        else:
+            try:
+                cursor = self.connection.cursor(dictionary=True)
+                query = "SELECT  collection_name, bid_price, COUNT(*) AS number_of_trs from  marketplace WHERE  order_type = 'buy' GROUP BY collection_name,bid_price "
+
+                cursor.execute(query)
+                results = cursor.fetchall()
+
+                logger.info(f"Entire Marketplace fetched successfully. ")
+                return results
+
+
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
+                
+    async def get_marketplace_collection(self, collection_name: str):
+        """
+        Retrieves the tokens listed on the marketplace for a specific collection from the database.
+
+        Parameters:
+        collection_name (str): The name of the collection for which to retrieve the tokens.
+
+        Returns:
+        List[Dict[str, Union[str, int]]]: A list of dictionaries representing the tokens listed on the marketplace for the given collection.
+        Each dictionary contains the following keys:
+            - "collection_name": The name of the collection to which the token belongs.
+            - "bid_price": The price at which the user is bidding to buy the token.
+            - "number_of_trs": The number of tokens listed on the marketplace for the given collection and bid price.
+
+        Raises:
+        HTTPException: If there is an error connecting to the database or retrieving the tokens from the marketplace.
+        """
+        if not self.connection:
+            logger.critical("No database connection.")
+        else:
+            try:
+                cursor = self.connection.cursor(dictionary=True)
+                query = "SELECT  collection_name, bid_price, COUNT(*) AS number_of_trs from  marketplace WHERE  order_type = 'buy' AND collection_name = %s GROUP BY collection_name,bid_price "
+
+                cursor.execute(query, (collection_name,))
+                results = cursor.fetchall()
+
+                logger.info(f"Marketplace for collection {collection_name} fetched successfully. ")
+                return results
+
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
