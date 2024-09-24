@@ -22,7 +22,7 @@ import logging.config
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("main")
 
-from backend.utils import get_current_user,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES,SERVER_URL
+from backend.utils import get_current_user,get_current_verified_user,get_current_admin,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES,SERVER_URL
 app = FastAPI()
 whiplano_id = '0000-0000-0000'
 
@@ -161,6 +161,12 @@ async def signup(user: SignupRequest):
     # Return token
     return {"access_token": access_token, "token_type": "bearer"}
 
+@app.post("/verify_user",dependencies = [Depends(get_current_user)])
+async def verify_user():
+    return
+
+
+
 @app.get("/login/google")
 async def login_with_google():
     """
@@ -179,8 +185,27 @@ async def login_with_google():
     logging.info("Redirecting user to Google OAuth2")
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/auth?client_id={GOOGLE_CLIENT_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=openid email")
 
+@app.post("/admin/add")
+async def add_admin(email: str, dependencies = [Depends(get_current_user)]) -> str:
+    """
+    This function adds a new admin user to the system.
 
-@app.get("/callback/google")
+    Parameters:
+    email (str): The email of the admin user to be added.
+    dependencies (list): A list of dependencies required for the function to execute.
+        In this case, it depends on the current user being authenticated.
+
+    Returns:
+    str: A success message indicating that the admin user has been added to the system.
+    """
+    return await database_client.add_admin(email)
+
+@app.post("/admin/creation_requests",dependencies = [Depends(get_current_user)])
+async def admin_creation_requests():
+    
+    return
+
+@app.get("/callback/google", response_model = Token)
 async def google_callback(request: Request):
     """
     This function handles the callback from Google OAuth2 authorization.
@@ -240,7 +265,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 @app.post("/mint_trs", dependencies=[Depends(get_current_user)])
-async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
+async def mint_trs(data : MintTrsData,user:User = Depends(get_current_verified_user)):
     """
     This function is responsible for minting a new TRS using the provided data.
 
@@ -272,7 +297,7 @@ async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
 
 
 @app.post('/trade/create',dependencies=[Depends(get_current_user)])
-async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
+async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_verified_user)):
     wallets = {}
     for i in data.seller_id:
         wallets[i] = await database_client.get_wallet_by_collection(i,data.collection_name)
@@ -458,7 +483,7 @@ async def marketplace_collection(collection_name: str):
     return trs_on_marketplace
 
 @app.post('/marketplace/place',dependencies=[Depends(get_current_user)])
-async def marketplace_add(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
+async def marketplace_add(collection_name: str, number: int, user: User = Depends(get_current_verified_user)) -> dict:
     """
     This function adds TRS of a specific collection to the marketplace.
 
@@ -487,6 +512,8 @@ async def marketplace_add(collection_name: str, number: int, user: User = Depend
         return {"message": F"Insufficient TRS of {collection_name} in wallet."}
 
     return
+
+
 
 
 

@@ -123,8 +123,10 @@ class DatabaseManager:
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM users WHERE email = %s"
+            
             cursor.execute(query, (email,))
             result = cursor.fetchone()
+            logger.info(f"Fetched user {result['email']}")
             return result
         except Error as e:
             logger.error(f"Error: {e}")
@@ -675,7 +677,7 @@ class DatabaseManager:
     Returns:
     dict: A dictionary containing the formatted wallet. The dictionary has the following keys:
         - "created_trs": A list of dictionaries representing the tokens created by the user.
-        - "artisan_trs": A list of dictionaries representing the tokens owned by artisans.
+        - "artisan_trs": A list of dictionaries representing the tokens that have artisan rights on.
         - "marketplace_trs": A list of dictionaries representing the tokens listed on the marketplace.
         - "trs": A list of dictionaries representing all the tokens in the user's wallet.
 
@@ -699,7 +701,7 @@ class DatabaseManager:
                 marketplace_trs = []
                 none_trs = []
                 for i in result: 
-                    if i['creator'] == i['user_id']:
+                    if i['creator'] == user_id:
                         created_trs.append(i)
                     if i['marketplace_trs'] == 1:
                         marketplace_trs.append(i)
@@ -725,7 +727,7 @@ class DatabaseManager:
                 
     
     
-    async def add_trs_to_marketplace(trs_id, collection_name, user_id,bid_price):
+    async def add_trs_to_marketplace(self,trs_id, collection_name, user_id,bid_price):
         """
     Adds a token to the marketplace in the database.
 
@@ -840,3 +842,26 @@ class DatabaseManager:
 
             finally: 
                 cursor.close()
+                
+    async def add_admin(self,email):
+        if not self.connection:
+            logger.critical("No database connection.")
+        else:
+            try:
+                cursor = self.connection.cursor(dictionary=True)
+                query = "UPDATE users set role = 'admin' WHERE email = '%s'"
+
+                cursor.execute(query, (email,))
+                self.connection.commit()
+
+                logger.info(f"User {email} added to the admin list. ")
+                
+                return
+
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
+        return

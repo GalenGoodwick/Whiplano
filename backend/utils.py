@@ -195,10 +195,98 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         "username": user['username'],
         "email": user['email']     
     }
-    print(user)
     if user is None:
 
         raise credentials_exception
     return User(**user)
 
+
+async def get_current_verified_user(token: str = Depends(oauth2_scheme)):
+    
+    """
+Asynchronously retrieves the current verified user based on the provided token.
+
+This function verifies the token, retrieves the user from the database, and returns the user object.
+If the token is invalid, unauthorized, or the user does not exist, it raises an HTTPException.
+If the user is not verified, it also raises an HTTPException.
+
+Parameters:
+token (str): The JWT token provided by the client. This token is used to authenticate the user.
+             The default value is obtained from the `oauth2_scheme` dependency.
+
+Returns:
+User: The user object containing the user's ID, username, and email.
+
+Raises:
+HTTPException: If the token is invalid, unauthorized, or the user does not exist.
+               If the user is not verified.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    authorization_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="User is not verified",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    payload = verify_token(token)
+
+    if not payload:
+        raise credentials_exception
+
+    email = payload.get("sub")
+
+    if email is None:
+        raise credentials_exception
+    user = await database_client.get_user_by_email(email)
+    user = {
+        "id":user['user_id'],
+        "username": user['username'],
+        "email": user['email']     
+    }
+    if user is None:
+
+        raise credentials_exception
+    elif user['status'] =='not verified':
+        raise authorization_exception
+    return User(**user)
+
+
+
+async def get_current_admin(token: str = Depends(oauth2_scheme)):
+    
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    authorization_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="User is not an admin. ",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    payload = verify_token(token)
+    if not payload:
+        raise credentials_exception
+    
+    email = payload.get("sub")
+    
+    if email is None:
+        raise credentials_exception
+    user = await database_client.get_user_by_email(email)
+    user = {
+        "id":user['user_id'],
+        "username": user['username'],
+        "email": user['email']     
+    }
+    if user is None:
+        raise credentials_exception
+    elif user['role'] == 'user':
+        raise authorization_exception
+    return User(**user)
 
