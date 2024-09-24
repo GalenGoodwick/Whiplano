@@ -246,7 +246,8 @@ HTTPException: If the token is invalid, unauthorized, or the user does not exist
     user = {
         "id":user['user_id'],
         "username": user['username'],
-        "email": user['email']     
+        "email": user['email'],
+        'status':user['status']
     }
     if user is None:
 
@@ -282,7 +283,8 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)):
     user = {
         "id":user['user_id'],
         "username": user['username'],
-        "email": user['email']     
+        "email": user['email'],
+        "role":user['role']
     }
     if user is None:
         raise credentials_exception
