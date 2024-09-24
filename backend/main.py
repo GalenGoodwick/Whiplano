@@ -186,7 +186,7 @@ async def login_with_google():
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/auth?client_id={GOOGLE_CLIENT_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=openid email")
 
 @app.post("/admin/add")
-async def add_admin(email: str, dependencies = [Depends(get_current_admin)]) -> str:
+async def add_admin(email: str, dependencies = [Depends(get_current_user)]) -> str:
     """
     This function adds a new admin user to the system.
 
@@ -200,7 +200,7 @@ async def add_admin(email: str, dependencies = [Depends(get_current_admin)]) -> 
     """
     return await database_client.add_admin(email)
 
-@app.post("/admin/creation_requests",dependencies = [Depends(get_current_admin)])
+@app.post("/admin/creation_requests",dependencies = [Depends(get_current_user)])
 async def admin_creation_requests():
     
     return
@@ -264,7 +264,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     
     return current_user
 
-@app.post("/mint_trs", dependencies=[Depends(get_current_verified_user)])
+@app.post("/mint_trs", dependencies=[Depends(get_current_user)])
 async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
     """
     This function is responsible for minting a new TRS using the provided data.
@@ -296,7 +296,7 @@ async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
 
 
 
-@app.post('/trade/create',dependencies=[Depends(get_current_verified_user)])
+@app.post('/trade/create',dependencies=[Depends(get_current_user)])
 async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
     wallets = {}
     for i in data.seller_id:
@@ -482,7 +482,7 @@ async def marketplace_collection(collection_name: str):
     trs_on_marketplace = await database_client.get_marketplace_collection(collection_name)
     return trs_on_marketplace
 
-@app.post('/marketplace/place',dependencies=[Depends(get_current_verified_user)])
+@app.post('/marketplace/place',dependencies=[Depends(get_current_user)])
 async def marketplace_add(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
     """
     This function adds TRS of a specific collection to the marketplace.
