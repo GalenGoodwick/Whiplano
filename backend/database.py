@@ -703,9 +703,9 @@ class DatabaseManager:
                 for i in result: 
                     if i['creator'] == user_id:
                         created_trs.append(i)
-                    if i['marketplace_trs'] == 1:
+                    if i['marketplace'] == 1:
                         marketplace_trs.append(i)
-                    elif i['artisan_trs'] == 1:
+                    elif i['artisan'] == 1:
                         artisan_trs.append(i)
 
                     none_trs.append(i)
