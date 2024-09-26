@@ -587,8 +587,8 @@ async def artisan_activate(collection_name: str, number: int, user: User = Depen
     return
 
 
-@app.post('/artisan/activate',dependencies=[Depends(get_current_user)])
-async def artisan_activate(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
+@app.post('/artisan/deactivate',dependencies=[Depends(get_current_user)])
+async def artisan_deactivate(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
     
     wallet = await database_client.get_wallet_formatted(user.id)
     req_wallet = []
