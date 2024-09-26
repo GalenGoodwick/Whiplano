@@ -768,6 +768,49 @@ class DatabaseManager:
 
             finally: 
                 cursor.close()
+                
+                
+    async def remove_trs_from_marketplace(self,trs_id, collection_name, user_id):
+        """
+    Adds a token to the marketplace in the database.
+
+    Parameters:
+    trs_id (str): The unique identifier of the token.
+    collection_name (str): The name of the collection to which the token belongs.
+    user_id (int): The unique identifier of the user who is adding the token to the marketplace.
+    bid_price (float): The price at which the user is bidding to sell the token.
+
+    Returns:
+    dict: A dictionary containing a success message.
+
+    Raises:
+    HTTPException: If there is an error adding the token to the marketplace.
+        """
+        if not self.connection:
+            logger.critical("No Database connection.")
+        elif not await self.get_user(user_id):
+            logger.info(f"User not found {user_id}")
+            return None
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+                query = "DELETE FROM marketplace where trs_id = %s"
+
+                cursor.execute(query, (trs_id,))
+                self.connection.commit()
+                query = "UPDATE trs set marketplace = 0 WHERE trs_id = %s"
+                cursor.execute(query,(trs_id,))
+                self.connection.commit()
+                logger.info(f"Removed trs {trs_id} of collection {collection_name} from the Marketplace")
+                return {'message':f"Removed trs {trs_id} of collection {collection_name} from the Marketplace"}
+
+
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
 
     async def get_marketplace_all(self):
         """
@@ -843,20 +886,31 @@ class DatabaseManager:
             finally: 
                 cursor.close()
                 
-    async def add_admin(self,email):
+
+    async def add_admin(self, email: str) -> None:
+        """
+        Adds a user with the given email to the admin list in the database.
+
+        Parameters:
+        email (str): The email of the user to be added to the admin list.
+
+        Returns:
+        None
+
+        Raises:
+        HTTPException: If there is an error connecting to the database or adding the user to the admin list.
+        """
         if not self.connection:
             logger.critical("No database connection.")
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
-                query = "UPDATE users set role = 'admin' WHERE email = '%s'"
+                query = "UPDATE users set role = 'admin' WHERE email = %s"
 
                 cursor.execute(query, (email,))
                 self.connection.commit()
 
                 logger.info(f"User {email} added to the admin list. ")
-                
-                return
 
             except Error as e:
                 logger.error(f"Error: {e}")
@@ -864,4 +918,87 @@ class DatabaseManager:
 
             finally: 
                 cursor.close()
-        return
+        
+    
+                
+                
+    
+    async def activate_artisan_trs(self,trs_id, user_id):
+        """
+    Activates the artisan rights for a specific token in the database.
+
+    Parameters:
+    trs_id (str): The unique identifier of the token.
+    user_id (int): The unique identifier of the user who is activating the artisan rights.
+
+    Returns:
+    dict: A dictionary containing a success message.
+
+    Raises:
+    HTTPException: If there is an error connecting to the database or activating the artisan rights.
+    """
+        if not self.connection:
+            logger.critical("No Database connection.")
+        elif not await self.get_user(user_id):
+            logger.info(f"User not found {user_id}")
+            return None
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+
+                query = "UPDATE trs set artisan = 1 WHERE trs_id = %s"
+                cursor.execute(query,(trs_id,))
+                self.connection.commit()
+                logger.info(f"Activated TRS rights for {trs_id}")
+                return {'message':f"Activated TRS rights for {trs_id}"}
+
+
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
+                
+    
+    async def deactivate_artisan_trs(self,trs_id, user_id):
+        """
+    Deactivates the artisan rights for a specific token in the database.
+
+    Parameters:
+    trs_id (str): The unique identifier of the token.
+    user_id (int): The unique identifier of the user who is deactivating the artisan rights.
+
+    Returns:
+    dict: A dictionary containing a success message.
+
+    Raises:
+    HTTPException: If there is an error connecting to the database or deactivating the artisan rights.
+    """
+        if not self.connection:
+            logger.critical("No Database connection.")
+        elif not await self.get_user(user_id):
+            logger.info(f"User not found {user_id}")
+            return None
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+
+                query = "UPDATE trs set artisan = 0 WHERE trs_id = %s"
+                cursor.execute(query,(trs_id,))
+                self.connection.commit()
+                logger.info(f"Deactivated artisan rights for TRS {trs_id}")
+                return {'message':f"Deactivated artisan rights for TRS {trs_id}"}
+
+
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
+                    
+        
+
+        
+        
