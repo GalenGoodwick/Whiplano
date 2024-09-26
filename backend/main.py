@@ -23,7 +23,15 @@ logging.config.dictConfig(logging_config)
 logger = logging.getLogger("main")
 
 from backend.utils import get_current_user,get_current_verified_user,get_current_admin,create_auth_token,verify_token,User,Token,TokenData,authenticate_user,SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES,SERVER_URL
-app = FastAPI()
+app = FastAPI(
+    title="Whiplano API",
+    description="The API used for the IP platform Whiplano",
+    version="0.1.1",
+    contact={
+        "name": "Dan",
+        "email": "danielvincent1718@gmail.com",
+    }
+)
 whiplano_id = '0000-0000-0000'
 
 database_client = database.DatabaseManager(
@@ -89,7 +97,7 @@ async def root():
     logger.info("App is running.")
     return {"message": "App is running."}
 
-@app.post("/login", response_model=Token)
+@app.post("/login", response_model=Token,tags=["Authentication"], summary="Logs in the User", description="Used to log in users via email/password")
 async def login(email: str = Form(...), password: str = Form(...)):
     """
     Authenticates a user using their email and password.
@@ -120,7 +128,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
     logger.info(f"User {user.email} succesfully authenticated")
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post('/signup', response_model=Token)
+@app.post('/signup', response_model=Token,tags=["Authentication"], summary="Signing up of new users", description="Used to add users via email/password")
 async def signup(user: SignupRequest):
     """
     This function handles the signup process for a new user. It checks if the user already exists,
@@ -161,13 +169,13 @@ async def signup(user: SignupRequest):
     # Return token
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/verify_user",dependencies = [Depends(get_current_user)])
+@app.post("/verify_user",dependencies = [Depends(get_current_user)],tags=["Authentication"], summary="Checks if user is verified.", description="Checks if user is verified.")
 async def verify_user():
     return
 
     
 
-@app.get("/login/google")
+@app.get("/login/google",dependencies = [Depends(get_current_user)],tags=["Authentication"], summary="Returns a url for logging in via Google Auth", description="Returns a url for logging in via Google Auth")
 async def login_with_google():
     """
     Redirects the user to the Google OAuth2 authorization page for login.
@@ -185,7 +193,7 @@ async def login_with_google():
     logging.info("Redirecting user to Google OAuth2")
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/auth?client_id={GOOGLE_CLIENT_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=openid email")
 
-@app.post("/admin/add")
+@app.post("/admin/add",tags=["Admin"], summary="Adds an admin", description="Updates a user to be an Admin. ")
 async def add_admin(email: str, dependencies = [Depends(get_current_user)]) -> str:
     """
     This function adds a new admin user to the system.
@@ -200,7 +208,7 @@ async def add_admin(email: str, dependencies = [Depends(get_current_user)]) -> s
     """
     return await database_client.add_admin(email)
 
-@app.post("/admin/creation_requests",dependencies = [Depends(get_current_user)])
+@app.post("/admin/creation_requests",dependencies = [Depends(get_current_user)],tags=["Admin"], summary="For getting the TRS creation requests", description="Returns the list of TRS creation requests currently pending for admins to approve. ")
 async def admin_creation_requests():
     
     return
@@ -246,7 +254,7 @@ async def google_callback(request: Request):
     logging.info(f"Authenticated user {idinfo['email']} using Google OAuth2")
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.get("/users/me", response_model=User)
+@app.get("/users/me", response_model=User, tags=["User"],summary="Returns the current user", description="Returns the current user.")
 async def read_users_me(current_user: User = Depends(get_current_user)):
     """
     Retrieve the current user's information.
@@ -264,7 +272,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     
     return current_user
 
-@app.post("/mint_trs", dependencies=[Depends(get_current_user)])
+@app.post("/mint_trs", dependencies=[Depends(get_current_user)],tags=["TRS"], summary="Creates TRS", description="Creates the TRS, mints the NFTs and transfers it to the creator. ")
 async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
     """
     This function is responsible for minting a new TRS using the provided data.
@@ -296,7 +304,7 @@ async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
 
 
 
-@app.post('/trade/create',dependencies=[Depends(get_current_user)])
+@app.post('/trade/create',dependencies=[Depends(get_current_user)],tags=['Transactions'],summary="Creates a trade.",description="Creates a trade, adds it to the pending trades database, creates a paypal transaction")
 async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
     wallets = {}
     for i in data.seller_id:
@@ -344,7 +352,7 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
         return
 
 
-@app.get('/trade/execute_payment')
+@app.get('/trade/execute_payment',tags =['Transactions'],summary='Executes the trade.',description='Executes the buyer transaction, sends payouts, transafers assets, and Finalizes the trade.')
 async def execute_payment(
     paymentId: Optional[str] = Query(None), 
     PayerID: Optional[str] = Query(None),
@@ -433,8 +441,8 @@ async def execute_payment(
         raise HTTPException(status_code=500, detail=str(error))
 
 
-@app.get('/wallet/get', dependencies=[Depends(get_current_user)], description="Returns a formatted wallet, as a JSON with created TRS, TRS on marketplace, and TRS with artisan rights.")
-async def trade_create(user: User = Depends(get_current_user)):
+@app.get('/wallet/get', dependencies=[Depends(get_current_user)],tags=["User"], description="Returns a formatted wallet, as a JSON with created TRS, TRS on marketplace, and TRS with artisan rights.")
+async def wallet_get(user: User = Depends(get_current_user)):
     """
     This function retrieves and formats the wallet of the current user. The wallet includes
     the created TRS, TRS on the marketplace, and TRS with artisan rights.
@@ -473,7 +481,7 @@ async def trade_create(user: User = Depends(get_current_user)):
 
 
 
-@app.get('/marketplace')
+@app.get('/marketplace',tags=["Marketplace"],summary="Fetches the marketplace",description="Fetches all the martketplace entries, along with the respective data. ")
 async def marketplace():
     """
     Retrieves all TRS currently listed on the marketplace.
@@ -490,7 +498,7 @@ async def marketplace():
     trs_on_marketplace = await database_client.get_marketplace_all()
     return trs_on_marketplace
 
-@app.get('/marketplace/collection')
+@app.get('/marketplace/collection',tags=["Marketplace"],summary="Fetches the marketplace for one collection",description="Fetches the martketplace entries for one specific collection, along with the respective data. ")
 async def marketplace_collection(collection_name: str):
     """
     Retrieves all TRS of a specific collection currently listed on the marketplace.
@@ -501,7 +509,7 @@ async def marketplace_collection(collection_name: str):
     trs_on_marketplace = await database_client.get_marketplace_collection(collection_name)
     return trs_on_marketplace
 
-@app.post('/marketplace/place',dependencies=[Depends(get_current_user)])
+@app.post('/marketplace/place',dependencies=[Depends(get_current_user)],tags=["Marketplace"],summary="Adds TRS to the marketplace",description="Adds TRS to the martketplace from a users wallet.  ")
 async def marketplace_add(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
     """
     This function adds TRS of a specific collection to the marketplace.
@@ -533,7 +541,7 @@ async def marketplace_add(collection_name: str, number: int, user: User = Depend
     return
 
 
-@app.post('/marketplace/remove',dependencies=[Depends(get_current_user)])
+@app.post('/marketplace/remove',dependencies=[Depends(get_current_user)],tags=["Marketplace"],summary="Removes TRS from the marketplace",description="Removes TRS from the martketplace from a users wallet.  ")
 async def marketplace_remove(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
     """
     This function removes TRS of a specific collection from the marketplace.
@@ -566,7 +574,7 @@ async def marketplace_remove(collection_name: str, number: int, user: User = Dep
     
 
 
-@app.post('/artisan/activate',dependencies=[Depends(get_current_user)])
+@app.post('/artisan/activate',dependencies=[Depends(get_current_user)],tags=["User"],summary="Activates artisan rights for a user's TRS",description="Activates artisan rights for a user's TRS")
 async def artisan_activate(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
     
     wallet = await database_client.get_wallet_formatted(user.id)
@@ -587,7 +595,7 @@ async def artisan_activate(collection_name: str, number: int, user: User = Depen
     return
 
 
-@app.post('/artisan/deactivate',dependencies=[Depends(get_current_user)])
+@app.post('/artisan/deactivate',dependencies=[Depends(get_current_user)],tags=["User"],summary="Deactivates artisan rights for a user's TRS",description="Deactivates artisan rights for a user's TRS")
 async def artisan_deactivate(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
     
     wallet = await database_client.get_wallet_formatted(user.id)
