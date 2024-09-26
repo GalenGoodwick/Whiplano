@@ -1,81 +1,77 @@
-import { publicKey, some, generateSigner, percentAmount, keypairIdentity, createSignerFromKeypair } from "@metaplex-foundation/umi";
-import {
-  fetchCandyMachine,
-  fetchCandyGuard,
-  mplCandyMachine,
-  create,
-  setCandyMachineAuthority,
-  setCandyGuardAuthority,
-} from '@metaplex-foundation/mpl-candy-machine'
-// Use the RPC endpoint of your choice.
+import * as fs from 'fs';
+import * as path from 'path';
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
+import { createSignerFromKeypair, signerIdentity } from '@metaplex-foundation/umi';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { create, createCollection, fetchCollection } from '@metaplex-foundation/mpl-core';
+import { generateSigner } from '@metaplex-foundation/umi';
+import { irysUploader } from '@metaplex-foundation/umi-uploader-irys';
 
-import {
-  createNft,
-  TokenStandard,
-} from '@metaplex-foundation/mpl-token-metadata'
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-async function manageCandyMachine() {
-  const umi = createUmi('https://api.devnet.solana.com');
-  umi.use(mplCandyMachine());
-  console.log("E")
-  // Create the Collection NFT.
-  const collectionUpdateAuthority = generateSigner(umi)
-  const collectionMint = generateSigner(umi)
+const umi = createUmi('https://api.devnet.solana.com');
+const walletFileContent = fs.readFileSync(
+  path.join(__dirname, '../central_wallet.json'),
+  'utf-8'
+);
+const secretKeyArray = JSON.parse(walletFileContent);
+const keypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array(secretKeyArray));
+const signer = createSignerFromKeypair(umi, keypair);
+umi.use(signerIdentity(signer));
+umi.use(irysUploader());
 
-  const myKeypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array([15,96,246,96,168,118,204,153,41,122,14,70,62,175,75,122,122,10,202,172,60,76,153,241,33,130,7,194,51,240,101,221,168,191,211,242,139,189,173,204,59,2,253,72,101,253,176,40,31,52,98,56,62,115,191,231,79,53,241,119,160,252,8,129]));
-  const myKeypairSigner = createSignerFromKeypair(umi, myKeypair);
-  umi.use(keypairIdentity(myKeypairSigner));
+const args = process.argv.slice(2);
 
-  await createNft(umi, {
-    mint: collectionMint,
-    authority: collectionUpdateAuthority,
-    name: 'My Collection NFT',
-    uri: 'https://example.com/path/to/some/json/metadata.json',
-    sellerFeeBasisPoints: percentAmount(9.99, 2), // 9.99%
-    isCollection: true,
-  }).sendAndConfirm(umi)
+const METADATA = args[0];
+const IMAGEURI = args[1];
+const NAME = args[2];
+const DESCRIPTION = args[3];
 
-  console.log(umi.identity.publicKey);
-
-  // Create the Candy Machine.
-  const candyMachine = generateSigner(umi);
-  const creatorA = generateSigner(umi).publicKey;
-
-  await(await create(umi, {
-    candyMachine,
-    collectionMint: collectionMint.publicKey,
-    collectionUpdateAuthority,
-    tokenStandard: TokenStandard.NonFungible,
-    sellerFeeBasisPoints: percentAmount(9.99, 2), // 9.99%
-    itemsAvailable: 5,
-    creators: [
-      {
-        address: umi.identity.publicKey,
-        verified: true,
-        percentageShare: 100,
-      },
-    ],
-    configLineSettings: some({
-      prefixName: '',
-      nameLength: 32,
-      prefixUri: '',
-      uriLength: 200,
-      isSequential: false,
-    }),
-  })).sendAndConfirm(umi)
+console.log(METADATA)
+console.log(IMAGEURI)
+console.log(NAME)
+console.log(DESCRIPTION)
 
 
-  const candyMachinePublicKey = candyMachine.publicKey
-  console.log('pub key: ' + candyMachinePublicKey)
-  
-  // // Fetch the Candy Machine.
-  const cm = await fetchCandyMachine(umi, candyMachinePublicKey)
-  const candyGuard = await fetchCandyGuard(umi, cm.mintAuthority)
+async function main() {
+  const imagePath = path.join(__dirname, IMAGEURI);
 
-  console.log(cm.publicKey) // The public key of the Candy Machine account.
-  console.log(cm.mintAuthority) // The mint authority of the Candy Machine which, in most cases, is the Candy Guard address.
-  console.log(cm.data.itemsAvailable) // Total number of NFTs available.
-  console.log(cm.itemsRedeemed) // Number of NFTs minted.
+  fs.readFile(imagePath, async (err, imageFile) => {
+    if (err) {
+      console.error('Error reading image file:', err);
+      return;
+    }
+
+    try {
+      const [imageUri] = await umi.uploader.upload([imageFile]);
+      const uri = await umi.uploader.uploadJson(METADATA);
+
+      const assetSigner = generateSigner(umi);
+
+      const assetResult = await create(umi, {
+        asset: assetSigner,
+        name: NAME,
+        uri: uri,
+        description:DESCRIPTION
+      }).sendAndConfirm(umi, { commitment: 'finalized' });
+      
+      console.log("Asset created",assetResult);
+
+    } catch (error) {
+      if (error.name === 'SendTransactionError') {
+        console.error("Error during the NFT creation process:", error.message);
+
+        // Get the transaction logs for debugging
+        const logs = error.getLogs ? error.getLogs() : error.transactionLogs;
+        console.log("Transaction Logs:", logs);
+      } else {
+        console.error("Unexpected Error:", error);
+      }
+    }
+  });
 }
 
-manageCandyMachine()
+// Run the main function
+main().catch(console.error);

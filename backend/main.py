@@ -4,7 +4,7 @@ from backend import transaction as transaction_module
 from typing import Optional
 from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta
-
+import subprocess
 from fastapi.responses import RedirectResponse
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -70,7 +70,6 @@ class BlockChainTransactionData(BaseModel):
 class MintTrsData(BaseModel):
     collection_name : str = Field(..., description = "Name of the collection")
     collection_description : str = Field(..., description = "Description of the collection")
-    collection_symbol : str = Field(..., description = "Symbol of the collection")
     number : int = Field(..., description = "Number of TRSs")
     uri : str = Field(..., description="URI of the NFT")
    
@@ -281,7 +280,6 @@ async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
     data (MintTrsData): A Pydantic model containing the necessary data for minting an NFT.
         - collection_name (str): The name of the collection.
         - collection_description (str): The description of the collection.
-        - collection_symbol (str): The symbol of the collection.
         - number (int): The number of TRSs.
         - uri (str): The URI of the NFT.
         
@@ -613,10 +611,24 @@ async def artisan_deactivate(collection_name: str, number: int, user: User = Dep
     else:
         return {"message": F"Insufficient TRS of {collection_name} in wallet."}
 
-    return
+    
 
 
 
 
 
 
+@app.post("/sugar-command/")
+async def run_sugar_command(command: str):
+    try:
+        # Execute the Sugar CLI command
+        result = subprocess.run(f"sugar {command}", shell=True, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            # If there was an error, raise an HTTP exception with the error message
+            raise HTTPException(status_code=500, detail=result.stderr.strip())
+
+        # Return the command's output
+        return {"output": result.stdout.strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
