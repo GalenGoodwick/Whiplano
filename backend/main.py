@@ -465,16 +465,14 @@ async def wallet_get(user: User = Depends(get_current_user)):
             elif trs['marketplace'] == 1:
                 final_wallet[trs['collection_name']]['marketplace'] +=1 
             elif trs['creator'] == user.id:
-                final_wallet[trs['collection_name']]['created'] +=1 
+                final_wallet[trs['collection_name']]['created'] = True
         else:
-            final_wallet[trs['collection_name']] = {'number': 0, 'created': 0, 'artisan': 0,'marketplace': 0,'data':"Collection data, will be added later. Gonna be images, descriptions, creator, etc. "}
+            final_wallet[trs['collection_name']] = {'number': 0, 'created': False, 'artisan': 0,'marketplace': 0,'data':"Collection data, will be added later. Gonna be images, descriptions, creator, etc. "}
             if trs['artisan'] == 1:
                 final_wallet[trs['collection_name']]['artisan'] +=1
             elif trs['marketplace'] == 1:
                 final_wallet[trs['collection_name']]['marketplace'] +=1 
-            elif trs['creator'] == user.id:
-                final_wallet[trs['collection_name']]['created'] +=1
-        
+
     return final_wallet
 
 
