@@ -32,7 +32,7 @@ def metadata_generator(self,collection_name, collection_description, symbol, ima
         "description": collection_description,
         "image": image_path_uri,
         "attributes": [
-            {
+            {g
                 "trait_type":"Number",
                 "value": None
             }

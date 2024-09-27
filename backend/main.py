@@ -467,7 +467,7 @@ async def wallet_get(user: User = Depends(get_current_user)):
             elif trs['creator'] == user.id:
                 final_wallet[trs['collection_name']]['created'] = True
         else:
-            final_wallet[trs['collection_name']] = {'number': 0, 'created': False, 'artisan': 0,'marketplace': 0,'data':"Collection data, will be added later. Gonna be images, descriptions, creator, etc. "}
+            final_wallet[trs['collection_name']] = {'number': 1, 'created': False, 'artisan': 0,'marketplace': 0,'data':"Collection data, will be added later. Gonna be images, descriptions, creator, etc. "}
             if trs['artisan'] == 1:
                 final_wallet[trs['collection_name']]['artisan'] +=1
             elif trs['marketplace'] == 1:
@@ -610,23 +610,3 @@ async def artisan_deactivate(collection_name: str, number: int, user: User = Dep
         return {"message": F"Insufficient TRS of {collection_name} in wallet."}
 
     
-
-
-
-
-
-
-@app.post("/sugar-command/")
-async def run_sugar_command(command: str):
-    try:
-        # Execute the Sugar CLI command
-        result = subprocess.run(f"sugar {command}", shell=True, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            # If there was an error, raise an HTTP exception with the error message
-            raise HTTPException(status_code=500, detail=result.stderr.strip())
-
-        # Return the command's output
-        return {"output": result.stdout.strip()}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

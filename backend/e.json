@@ -1,8 +1,16 @@
 {
-  "collection_name": "MyNFTCollection",
-  "collection_description": "A collection of unique NFTs",
-  "collection_symbol": "NFT",
-  "number": 100,
-  "uri": "./collections/assets/9.png",
-  "creator_id": 12345
+  "MintingTrs22": {
+      "number": 9,
+      "created": true,
+      "artisan": 0,
+      "marketplace": 0,
+      "data": "Collection data, will be added later. Gonna be images, descriptions, creator, etc. "
+  },
+  "AnotherTRS": {
+      "number": 9,
+      "created": true,
+      "artisan": 0,
+      "marketplace": 0,
+      "data": "Collection data, will be added later. Gonna be images, descriptions, creator, etc. "
+  }
 }
