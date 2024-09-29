@@ -919,7 +919,37 @@ class DatabaseManager:
             finally: 
                 cursor.close()
         
-    
+    async def verify_user(self, email: str) -> None:
+        """
+        Verifies a user in the database
+
+        Parameters:
+        email (str): The email of the user to be verified. 
+
+        Returns:
+        None
+
+        Raises:
+        HTTPException: If there is an error connecting to the database or adding the user to the admin list.
+        """
+        if not self.connection:
+            logger.critical("No database connection.")
+        else:
+            try:
+                cursor = self.connection.cursor(dictionary=True)
+                query = "UPDATE users set status = 'verified' WHERE email = %s"
+
+                cursor.execute(query, (email,))
+                self.connection.commit()
+
+                logger.info(f"User {email} has been verified. ")
+
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
                 
                 
     

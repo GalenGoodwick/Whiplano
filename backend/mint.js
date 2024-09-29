@@ -23,17 +23,33 @@ umi.use(signerIdentity(signer));
 umi.use(irysUploader());
 
 const args = process.argv.slice(2);
-
-const METADATA = args[0];
+const METADATA_URI = args[0]; // Expecting the URI as the first argument
 const IMAGEURI = args[1];
 const NAME = args[2];
 const DESCRIPTION = args[3];
 
-console.log(METADATA)
-console.log(IMAGEURI)
-console.log(NAME)
-console.log(DESCRIPTION)
+console.log(METADATA_URI);
+console.log(IMAGEURI);
+console.log(NAME);
+console.log(DESCRIPTION);
 
+async function fetchMetadata(filePath) {
+  return new Promise((resolve, reject) => {
+    fs.readFile(filePath, 'utf-8', (err, data) => {
+      if (err) {
+        console.error('Error reading metadata file:', err);
+        return reject(err);
+      }
+      try {
+        const metadata = JSON.parse(data); // Parse the JSON data
+        resolve(metadata); // Return the parsed JSON object
+      } catch (parseError) {
+        console.error('Error parsing JSON:', parseError);
+        reject(parseError);
+      }
+    });
+  });
+}
 
 async function main() {
   const imagePath = path.join(__dirname, IMAGEURI);
@@ -46,18 +62,27 @@ async function main() {
 
     try {
       const [imageUri] = await umi.uploader.upload([imageFile]);
-      const uri = await umi.uploader.uploadJson(METADATA);
 
+      // Fetch and parse the metadata
+      const metadata = await fetchMetadata(METADATA_URI);
+      
       const assetSigner = generateSigner(umi);
 
       const assetResult = await create(umi, {
         asset: assetSigner,
         name: NAME,
-        uri: uri,
-        description:DESCRIPTION
+        uri: metadata.uri, // Use the uri from the fetched metadata
+        description: DESCRIPTION || metadata.description // Use description from metadata if provided
       }).sendAndConfirm(umi, { commitment: 'finalized' });
-      
-      console.log("Asset created",assetResult);
+
+      console.log("Asset created", assetResult);
+
+      // Get mint address and token account address
+      const mintAddress = assetResult.mintAddress; // This may vary based on the library version
+      const tokenAccountAddress = assetResult.tokenAccountAddress; // Check the exact property names in assetResult
+
+      console.log("Mint Address:", mintAddress);
+      console.log("Token Account Address:", tokenAccountAddress);
 
     } catch (error) {
       if (error.name === 'SendTransactionError') {

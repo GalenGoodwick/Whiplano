@@ -1,9 +1,10 @@
-from fastapi import FastAPI, HTTPException, Query,Depends,Form,status, Request
-from backend import database, mint, paypal, utils
+from fastapi import FastAPI, HTTPException, Query,Depends,Form,status, Request, File, UploadFile
+from backend import database, mint, paypal, utils, storage
 from backend import transaction as transaction_module
+
 from typing import Optional
 from pydantic import BaseModel,Field,EmailStr
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,date
 import subprocess
 from fastapi.responses import RedirectResponse
 from google.oauth2 import id_token
@@ -13,6 +14,8 @@ import os
 import requests
 import logging
 import uuid
+
+import shutil 
 
 ROYALTY  = 2.5
 FEES = 2.5
@@ -78,8 +81,17 @@ class TradeCreateData(BaseModel):
     seller_id : list = Field(..., description = "ID of the seller")
     number : int = Field(..., description = "Number of TRSs to be traded") 
     cost : float = Field(..., description = "Cost of one TRS")
-    
 
+class KYCData(BaseModel):
+    first_name: str
+    last_name: str
+    date_of_birth: date
+    address: str
+    identity_type: str  # 'passport' or 'national_id'
+    addres_proof_type : str # 'utility bill' or anything else. 
+
+
+    
 
 @app.get("/")
 async def root():
@@ -172,8 +184,52 @@ async def signup(user: SignupRequest):
 async def verify_user():
     return
 
-    
 
+@app.post("/submit-kyc/", dependencies = [Depends(get_current_user)],tags=["Authentication"],summary = "Takes in all the KYC data, then verifies the user. ")
+async def submit_kyc(
+    current_user: User = Depends(get_current_user),
+    kyc_data: KYCData = Form(...),
+    identity_card: UploadFile = File(...),
+    address_proof: UploadFile = File(...),
+    selfie_with_id: UploadFile = File(...)
+
+):
+    """
+    Submits KYC data and verifies the user.
+
+    This function takes in KYC data, identity card, address proof, and selfie with ID as form data.
+    It uploads the files to a storage service, verifies the user, and returns the submitted KYC data.
+
+    Parameters:
+    current_user (User): The current user. This parameter is obtained from the 'get_current_user' function.
+    kyc_data (KYCData): The KYC data submitted by the user. This parameter is obtained from the form data.
+    identity_card (UploadFile): The identity card uploaded by the user. This parameter is obtained from the form data.
+    address_proof (UploadFile): The address proof uploaded by the user. This parameter is obtained from the form data.
+    selfie_with_id (UploadFile): The selfie with ID uploaded by the user. This parameter is obtained from the form data.
+
+    Returns:
+    dict: A dictionary containing the message, KYC data, and URLs of the uploaded files.
+    """
+    identity_url = await storage.upload_to_s3(identity_card, f"identity_cards/{current_user.id}")
+    utility_url = await storage.upload_to_s3(address_proof, f"address_proof/{current_user.id}")
+    selfie_url = await storage.upload_to_s3(selfie_with_id, f"selfies/{current_user.id}")
+    logger.info(f"Uploaded Identity, Utility, and selfie to Filebase for user {current_user.email}.")
+    await database_client.verify_user(current_user.email)
+    logger.info(f"User {current_user.email} has been verified. ")
+    return {
+        "message": "KYC information submitted successfully",
+        "first_name": kyc_data.first_name,
+        "last_name": kyc_data.last_name,
+        "date_of_birth": kyc_data.date_of_birth,
+        "address": kyc_data.address,
+        "identity_type": kyc_data.identity_type,
+        "identity_card_url": identity_url,
+        "address_proof_type": kyc_data.address_proof_type,
+        "address_proof_url": utility_url,
+        "selfie_with_id_url": selfie_url
+    }
+    
+    
 @app.get("/login/google",dependencies = [Depends(get_current_user)],tags=["Authentication"], summary="Returns a url for logging in via Google Auth", description="Returns a url for logging in via Google Auth")
 async def login_with_google():
     """
@@ -209,7 +265,7 @@ async def add_admin(email: str, dependencies = [Depends(get_current_user)]) -> s
 
 @app.post("/admin/creation_requests",dependencies = [Depends(get_current_user)],tags=["Admin"], summary="For getting the TRS creation requests", description="Returns the list of TRS creation requests currently pending for admins to approve. ")
 async def admin_creation_requests():
-    
+        
     return
 
 @app.get("/callback/google", response_model = Token)
@@ -281,7 +337,7 @@ async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
         - collection_name (str): The name of the collection.
         - collection_description (str): The description of the collection.
         - number (int): The number of TRSs.
-        - uri (str): The URI of the NFT.
+        - uri (str): The URI of the NFT.    
         
     Returns:
     dict: A dictionary containing a success message.

@@ -56,9 +56,9 @@ def metadata_generator(self,collection_name, collection_description, symbol, ima
     return f'{path_beginner}{collection_name}'
 
 
-'''
+
 async def mint_nft(data):
-    ''''
+  
     await minter.mint_nfts(
         data['collection_name'],
         data['collection_description'],
@@ -68,53 +68,9 @@ async def mint_nft(data):
     
     
     await database.add_trs(number,mint_addresses[0],collection_name,token_account_address,creator_id)
-    central_key = "9QVeLdhziTQBFSTNWQxbzhwzQ"
 
-    
-    print("Generating metadata")
-    
-    self.metadata_generator(collection_name,collection_description,collection_symbol,uri,1)
-    print("Generating images")
-    self.image_duplicator(uri,1,collection_name)
-    print("Editing config")
-    self.edit_config(collection_symbol,central_key,1)
-    print("Uploading to central")
-    
-    self.run_command(f'sugar upload -k ./central_wallet.json ./collections/{collection_name}')
-    print("Deploying")
-    self.run_command("sugar deploy")
-    print("Verifying")
-    self.run_command("sugar verify")
-    print("Minting")
-    mint_addresses = []
-
-    e = self.run_command("sugar mint")
-    mint_split = e.split()
-    
-    for l in mint_split:
-        if l == 'Mint:':
-            mint_address = mint_split[mint_split.index(l)+1]
-            mint_address = Pubkey.from_string(mint_address)
-            mint_addresses.append(mint_address)
-            break
-    
-    print(mint_address)
-    print("Minted the NFT")
-    time.sleep(5)
-
-    token_account_address = await (get_token_account_address(mint_addresses[0]))
-    print("Token account address: ",token_account_address)
-    print(type(token_account_address))
-    await database.add_trs(number,mint_addresses[0],collection_name,token_account_address,creator_id)
-    
-    
-    print("Cleaning up")
-    try:
-        os.remove('./cache.json')
-        shutil.rmtree(f'./collections/{collection_name}')
-    except Exception as e:
-        print(e)'''
 
     return
 #e = NFTMinter("9QVeLdhziTQBFSTNWQxbzhwzQYgmcH4vT8GPsWqDBQFj")
 #e.mint_nfts("TestingDatbase","tiele","title",100,'./collections/assets/9.png',10)
+'''

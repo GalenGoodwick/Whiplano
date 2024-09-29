@@ -54,6 +54,12 @@ logging_config = {
             'formatter': 'standard',
             'filename': 'logs/transaction.log',
             'level': 'DEBUG',
+        },
+        'file_storage': {
+            'class': 'logging.FileHandler',
+            'formatter': 'standard',
+            'filename': 'logs/storage.log',
+            'level': 'DEBUG',
         }
     },
     'loggers': {
@@ -83,6 +89,11 @@ logging_config = {
             'propagate': False,
         },
         'transaction': {  # Logger for transaction operations
+            'handlers': ['console', 'file_transaction'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'storage':{  # Logger for transaction operations
             'handlers': ['console', 'file_transaction'],
             'level': 'DEBUG',
             'propagate': False,
