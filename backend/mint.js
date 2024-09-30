@@ -1,102 +1,157 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
-import { createSignerFromKeypair, signerIdentity } from '@metaplex-foundation/umi';
+import { createProgrammableNft, mplTokenMetadata } from "@metaplex-foundation/mpl-token-metadata";
+import {
+  createGenericFile,
+  generateSigner,
+  percentAmount,
+  signerIdentity,
+  sol,
+} from "@metaplex-foundation/umi";
+import { createSignerFromKeypair } from '@metaplex-foundation/umi'
+import { transferV1 } from '@metaplex-foundation/mpl-token-metadata'
+import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import { irysUploader } from "@metaplex-foundation/umi-uploader-irys";
+import { base58 } from "@metaplex-foundation/umi/serializers";
+import fs from "fs";
+import path from "path";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { create, createCollection, fetchCollection } from '@metaplex-foundation/mpl-core';
-import { generateSigner } from '@metaplex-foundation/umi';
-import { irysUploader } from '@metaplex-foundation/umi-uploader-irys';
+import dotenv from 'dotenv';
 
+dotenv.config();
+
+
+// Get the current directory name
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const createNft = async (name,ImagePath, MetadataPath) => {
+  //
+  // ** Setting Up Umi **
+  //
 
-const umi = createUmi('https://api.devnet.solana.com');
-const walletFileContent = fs.readFileSync(
-  path.join(__dirname, '../central_wallet.json'),
-  'utf-8'
-);
-const secretKeyArray = JSON.parse(walletFileContent);
-const keypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array(secretKeyArray));
-const signer = createSignerFromKeypair(umi, keypair);
-umi.use(signerIdentity(signer));
-umi.use(irysUploader());
+  const umi = createUmi('https://api.devnet.solana.com')
+    .use(mplTokenMetadata())
+  .use(
+    irysUploader({
+      // mainnet address: "https://node1.irys.xyz"
+      // devnet address: "https://devnet.irys.xyz"
+      address: "https://devnet.irys.xyz",
+    })
+  );
 
+
+
+  // You will need to us fs and navigate the filesystem to
+  const walletFile = fs.readFileSync(path.join(__dirname, './keypair.json'));
+  const secretKey = JSON.parse(walletFile); // Parse JSON to get the array
+  let keypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array(secretKey));
+  const signer = createSignerFromKeypair(umi, keypair);
+  umi.use(signerIdentity(signer));
+
+
+
+  //
+  // ** Upload an image to Arweave **
+  //
+
+  // use `fs` to read file via a string path.
+  // You will need to understand the concept of pathing from a computing perspective.
+
+  const imageFile = fs.readFileSync(
+    path.join(__dirname, ImagePath)
+  );
+
+  // Use `createGenericFile` to transform the file into a `GenericFile` type
+  // that umi can understand. Make sure you set the mimi tag type correctly
+  // otherwise Arweave will not know how to display your image.
+
+  const umiImageFile = createGenericFile(imageFile, `${name}.png`, {
+    tags: [{ name: "Content-Type", value: "image/png" }],
+  });
+
+  // Here we upload the image to Arweave via Irys and we get returned a uri
+  // address where the file is located. You can log this out but as the
+  // uploader can takes an array of files it also returns an array of uris.
+  // To get the uri we want we can call index [0] in the array.
+
+  console.log("Uploading image...");
+  const imageUrl = await umi.uploader.upload([umiImageFile]).catch((err) => {
+    throw new Error(err);
+  });
+
+  
+  const imageUri = imageUrl[0].replace(/arweave\.net/g, 'devnet.irys.xyz');
+
+  //
+  // ** Upload Metadata to Arweave **
+  //
+  const metadataJson = fs.readFileSync(path.join(MetadataPath));
+  const metadata = JSON.parse(metadataJson);
+
+  // Replace the image URI in the metadata with the uploaded image URI
+  metadata.image = imageUri; // Update image URI
+  metadata.properties.files[0].uri = imageUri;
+  
+
+  // Call upon umi's uploadJson function to upload our metadata to Arweave via Irys.
+  console.log("Uploading metadata...");
+  const metadataUrl = await umi.uploader.uploadJson(metadata).catch((err) => {
+    throw new Error(err);
+  });
+  const metadataUri = metadataUrl.replace(/arweave\.net/g, 'devnet.irys.xyz');
+
+  //
+  // ** Creating the Nft ** 
+  //
+
+  // We generate a signer for the Nft
+  const nftSigner = generateSigner(umi);
+
+  // Decide on a ruleset for the Nft.
+  // Metaplex ruleset - publicKey("eBJLFYPxJmMGKuFwpDWkzxZeUrad92kZRC5BJLpzyT9")
+  // Compatability ruleset - publicKey("AdH2Utn6Fus15ZhtenW4hZBQnvtLgM1YCW2MfVp7pYS5")
+  const ruleset = null // or set a publicKey from above
+
+  console.log("Creating Nft...");
+  const tx = await createProgrammableNft(umi, {
+    mint: nftSigner,
+    sellerFeeBasisPoints: percentAmount(0),
+    name: metadata.name,
+    uri: metadataUri,
+    ruleSet: ruleset,
+  }).sendAndConfirm(umi);
+
+  // Finally we can deserialize the signature that we can check on chain.
+  const signature = base58.deserialize(tx.signature)[0];
+
+  // Log out the signature and the links to the transaction and the NFT.
+  console.log("\npNFT Created")
+  console.log("View Transaction on Solana Explorer");
+  console.log(`https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+  console.log("\n");
+  console.log("View NFT on Metaplex Explorer");
+  console.log(`https://explorer.solana.com/address/${nftSigner.publicKey}?cluster=devnet`);
+
+  const recipientPublicKey = signer.publicKey; // Ensure recipientWallet is a valid public key
+  console.log("Transferring NFT...");
+  await transferV1(umi,{
+    nftSigner,
+    authority: currentOwner,
+    tokenOwner: currentOwner.publicKey,
+    destinationOwner: newOwner.publicKey,
+    tokenStandard: TokenStandard.NonFungible,
+  }
+     
+  )
+}
+
+// Get command-line arguments
 const args = process.argv.slice(2);
-const METADATA_URI = args[0]; // Expecting the URI as the first argument
-const IMAGEURI = args[1];
-const NAME = args[2];
-const DESCRIPTION = args[3];
+const imagePath = args[0];
+const metadataPath = args[1]; // Now passing metadata file path
+const name = "pon";
+createNft(name,imagePath, metadataPath).then((nftSigner) => {
+  console.log(`NFT Signer Public Key: ${nftSigner}`);
+}).catch((error) => {
+  console.error(error);
+});
 
-console.log(METADATA_URI);
-console.log(IMAGEURI);
-console.log(NAME);
-console.log(DESCRIPTION);
-
-async function fetchMetadata(filePath) {
-  return new Promise((resolve, reject) => {
-    fs.readFile(filePath, 'utf-8', (err, data) => {
-      if (err) {
-        console.error('Error reading metadata file:', err);
-        return reject(err);
-      }
-      try {
-        const metadata = JSON.parse(data); // Parse the JSON data
-        resolve(metadata); // Return the parsed JSON object
-      } catch (parseError) {
-        console.error('Error parsing JSON:', parseError);
-        reject(parseError);
-      }
-    });
-  });
-}
-
-async function main() {
-  const imagePath = path.join(__dirname, IMAGEURI);
-
-  fs.readFile(imagePath, async (err, imageFile) => {
-    if (err) {
-      console.error('Error reading image file:', err);
-      return;
-    }
-
-    try {
-      const [imageUri] = await umi.uploader.upload([imageFile]);
-
-      // Fetch and parse the metadata
-      const metadata = await fetchMetadata(METADATA_URI);
-      
-      const assetSigner = generateSigner(umi);
-
-      const assetResult = await create(umi, {
-        asset: assetSigner,
-        name: NAME,
-        uri: metadata.uri, // Use the uri from the fetched metadata
-        description: DESCRIPTION || metadata.description // Use description from metadata if provided
-      }).sendAndConfirm(umi, { commitment: 'finalized' });
-
-      console.log("Asset created", assetResult);
-
-      // Get mint address and token account address
-      const mintAddress = assetResult.mintAddress; // This may vary based on the library version
-      const tokenAccountAddress = assetResult.tokenAccountAddress; // Check the exact property names in assetResult
-
-      console.log("Mint Address:", mintAddress);
-      console.log("Token Account Address:", tokenAccountAddress);
-
-    } catch (error) {
-      if (error.name === 'SendTransactionError') {
-        console.error("Error during the NFT creation process:", error.message);
-
-        // Get the transaction logs for debugging
-        const logs = error.getLogs ? error.getLogs() : error.transactionLogs;
-        console.log("Transaction Logs:", logs);
-      } else {
-        console.error("Unexpected Error:", error);
-      }
-    }
-  });
-}
-
-// Run the main function
-main().catch(console.error);

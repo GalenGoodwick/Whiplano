@@ -2,11 +2,11 @@ from fastapi import FastAPI, HTTPException, Query,Depends,Form,status, Request, 
 from backend import database, mint, paypal, utils, storage
 from backend import transaction as transaction_module
 
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta,date
 import subprocess
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from dotenv import load_dotenv
@@ -87,12 +87,12 @@ class KYCData(BaseModel):
     last_name: str
     date_of_birth: date
     address: str
-    identity_type: str  # 'passport' or 'national_id'
-    addres_proof_type : str # 'utility bill' or anything else. 
+    identity_type: str  # 'passport' or 'national_id' or 'driver's license'
+    address_proof_type : str # 'utility bill' or anything else. 
 
-
-    
-
+class Metadata(BaseModel):
+    title: str
+    description: str
 @app.get("/")
 async def root():
     """
@@ -265,9 +265,22 @@ async def add_admin(email: str, dependencies = [Depends(get_current_user)]) -> s
 
 @app.post("/admin/creation_requests",dependencies = [Depends(get_current_user)],tags=["Admin"], summary="For getting the TRS creation requests", description="Returns the list of TRS creation requests currently pending for admins to approve. ")
 async def admin_creation_requests():
+    try:
+        data = await database_client.get_trs_creation_requests('pending')
         
-    return
+        return data
+    except Exception as e: 
+        return HTTPException(status_code= 500, content= e)
+    
 
+@app.post("/admin/approve",dependencies = [Depends(get_current_user)],tags = ["Admin"],summary = "For approving TRS creation requests, and minting the TRS")
+async def admin_approve(title: str):
+    await database.approve_trs_creation_request(title) 
+   
+    
+    #await mint.mint_nft(data)
+     
+    return
 @app.get("/callback/google", response_model = Token)
 async def google_callback(request: Request):
     """
@@ -327,36 +340,46 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     
     return current_user
 
-@app.post("/mint_trs", dependencies=[Depends(get_current_user)],tags=["TRS"], summary="Creates TRS", description="Creates the TRS, mints the NFTs and transfers it to the creator. ")
-async def mint_trs(data : MintTrsData,user:User = Depends(get_current_user)):
+@app.post("/create_trs_request", dependencies=[Depends(get_current_user)],tags=["TRS"], summary="Creates TRS", description="Makes a TRS Creation request, with all the given data.")
+async def create_trs_request(
+    current_user: User = Depends(get_current_user),
+    model_name: str = Form(...),
+    metadata: Metadata = Form(...),
+    files: List[UploadFile] = File(...),
+):
     """
-    This function is responsible for minting a new TRS using the provided data.
+    This function creates a TRS creation request by uploading files to a storage service,
+    and storing the request details in a database.
 
     Parameters:
-    data (MintTrsData): A Pydantic model containing the necessary data for minting an NFT.
-        - collection_name (str): The name of the collection.
-        - collection_description (str): The description of the collection.
-        - number (int): The number of TRSs.
-        - uri (str): The URI of the NFT.    
-        
+    current_user (User): The user making the TRS creation request. This parameter is obtained from the 'get_current_user' function.
+    model_name (str): The name of the model used for creating the TRS.
+    metadata (Metadata): The metadata associated with the TRS creation request.
+    files (List[UploadFile]): The files associated with the TRS creation request.
+
     Returns:
-    dict: A dictionary containing a success message.
-        - message (str): "TRS minted successfully."
+    JSONResponse: A JSON response indicating the success or failure of the TRS creation request.
+        - status_code (int): The HTTP status code of the response.
+        - content (dict): The content of the response. It contains a message indicating the success or failure of the request.
 
     Raises:
-    HTTPException: If an error occurs during the minting process.
+    HTTPException: If an error occurs during the TRS creation request.
     """
+    if len(files) > 10:
+        return JSONResponse(status_code=400, content={"message": "A maximum of 10 files can be uploaded."})
     try:
-        
-        data = dict(data)
-        data['creator_id'] = user
-    
-        await mint.mint_nft(data)
-        return {"message": "TRS minted successfully."}
+        file_urls = []
+        for file in files:
+            file_url = await storage.upload_to_s3(file,f'trs_data/{metadata.title}/{file.filename}')
+            file_urls.append(file_url)
+
+        file_url_header =  f'trs_data/{metadata.title}/'
+
+        await database_client.add_trs_creation_request(model_name,metadata.title,metadata.description,current_user.email, file_url_header)
+
+        return JSONResponse(status_code= 200, content = {"message":"Trs creation request submitted succesfully. "})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+        return HTTPException(status_code = 500, content = str(e))
 
 @app.post('/trade/create',dependencies=[Depends(get_current_user)],tags=['Transactions'],summary="Creates a trade.",description="Creates a trade, adds it to the pending trades database, creates a paypal transaction")
 async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):

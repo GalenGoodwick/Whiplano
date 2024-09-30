@@ -1028,7 +1028,59 @@ class DatabaseManager:
             finally: 
                 cursor.close()
                     
-        
+    
+    async def add_trs_creation_request(self,model_name,title,description,creator_email, file_url_header):
+        """
+    Submits a new TRS creation request to the database.
 
+    Parameters:
+    model_name (str): The name of the 3D model associated with the TRS.
+    title (str): The title of the TRS creation request.
+    description (str): A detailed description of the TRS creation request.
+    creator_email (str): The email of the user who is submitting the TRS creation request.
+    file_url_header (str): The URL of the header image associated with the TRS creation request.
+
+    Returns:
+    None
+
+    Raises:
+    HTTPException: If there is an error connecting to the database or submitting the TRS creation request.
+        """
+        if not self.connection:
+            logger.critical("No database connection")
+            return
+        try:
+            logger.info("trying for cursor")
+            cursor = self.connection.cursor()            
+            query = "INSERT INTO trs_creation_requests (model_name, title, description, creator_email, file_url_header) VALUES (%s, %s, %s,%s,%s)"
+            values = (model_name,title, description, creator_email, file_url_header)
+            cursor.execute(query, values)
+            self.connection.commit()
+            logger.info(f"New TRS request submitted from {creator_email} with title {title}.")
+
+        except Error as e:
+            logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+
+        finally:
+            cursor.close()
+
+    async def get_trs_creation_requests(self,status):
         
-        
+        if not self.connection:
+            logger.critical("No database connection")
+            return None
+        try:
+            cursor = self.connection.cursor(dictionary=True)
+            query = "SELECT * FROM trs_creation_requests WHERE status = %s"
+            cursor.execute(query, (status,))
+            result = cursor.fetchall()
+            return result
+        except Error as e:
+            
+            logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+            
+        finally:
+            cursor.close()
+    

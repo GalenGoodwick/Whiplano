@@ -48,7 +48,12 @@ urllib3==2.2.3
 uvicorn==0.30.6
 websockets==11.0.3
 yarl==1.11.1 
-boto3==1.35.28
-botocore==1.35.28 
 jmespath==1.0.1 
 s3transfer==0.10.2
+aioboto3==13.1.1
+aiobotocore==2.13.1
+aiofiles==24.1.0
+aioitertools==0.12.0
+boto3==1.34.131
+botocore==1.34.131
+wrapt==1.16.0
