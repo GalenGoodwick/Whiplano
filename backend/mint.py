@@ -59,10 +59,4 @@ async def mint(title,description,number,owner_email):
     
     mint_address = run_mint_script(image_path,metadata_path,title)
     return mint_address
-# Example usage
-image_path = '../collections/assets/9.png'
-metadata_path = '../collections/assets/9.json'
-name = 'bunana'
-
-mint_address, token_address = run_mint_script(image_path, metadata_path, name)
 
