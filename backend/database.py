@@ -1084,3 +1084,45 @@ class DatabaseManager:
         finally:
             cursor.close()
     
+    async def approve_trs_creation_request(self,id,creator_email,number,mint_address,collection_name,token_account_address):
+
+        if not self.connection:
+            logger.critical("No Database connection.")
+        elif not await self.get_user(id):
+            logger.info(f"Creation request not found : {id}")
+            return None
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+
+                query = "UPDATE trs_creation_requests set status = 'approved' WHERE id = %s"
+                cursor.execute(query,(id,))
+                self.connection.commit()
+                logger.info(f"Approved TRS creation request {id}")
+                creator_id = self.get_user_by_email(creator_email)['user_id']
+                await self.add_trs(number,mint_address,collection_name,token_account_address,creator_id)
+                logger.info(f"Finalized TRS Creation request. {id} from {creator_email}")
+            
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
+    async def get_trs_creation_data(self,title):
+        if not self.connection:
+            logger.critical("No database connection")
+            return None
+        try:
+            cursor = self.connection.cursor(dictionary=True)
+            query = "SELECT * FROM trs_creation_requests WHERE id = %s"
+            cursor.execute(query, (title,))
+            result = cursor.fetchall()
+            return result
+        except Error as e:
+            
+            logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+            
+        finally:
+            cursor.close()

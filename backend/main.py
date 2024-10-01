@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query,Depends,Form,status, Request, File, UploadFile
-from backend import database, mint, paypal, utils, storage
+from backend import database, paypal, utils, storage,mint
 from backend import transaction as transaction_module
-
 from typing import Optional, List
 from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta,date
@@ -15,7 +14,9 @@ import requests
 import logging
 import uuid
 
-import shutil 
+import shutil
+
+from . import mint 
 
 ROYALTY  = 2.5
 FEES = 2.5
@@ -274,13 +275,13 @@ async def admin_creation_requests():
     
 
 @app.post("/admin/approve",dependencies = [Depends(get_current_user)],tags = ["Admin"],summary = "For approving TRS creation requests, and minting the TRS")
-async def admin_approve(title: str):
-    await database.approve_trs_creation_request(title) 
-   
-    
-    #await mint.mint_nft(data)
-     
-    return
+async def admin_approve(id: int):
+    number = 1000
+    trs_creation_data = await database_client.get_trs_creation_data(id)
+    mint_address = await mint.mint(trs_creation_data['title'],trs_creation_data['description'],number,trs_creation_data['creator_email'])
+    token_account_address = await transaction_module.get_token_account_address(mint_address)
+    await database_client.approve_trs_creation_request(id,trs_creation_data['creator_email'],number,mint_address,title,token_account_address)
+    return {"message":"TRS Succesfully created. "}
 @app.get("/callback/google", response_model = Token)
 async def google_callback(request: Request):
     """
@@ -346,6 +347,7 @@ async def create_trs_request(
     model_name: str = Form(...),
     metadata: Metadata = Form(...),
     files: List[UploadFile] = File(...),
+    image: UploadFile = File(...)
 ):
     """
     This function creates a TRS creation request by uploading files to a storage service,
@@ -372,7 +374,7 @@ async def create_trs_request(
         for file in files:
             file_url = await storage.upload_to_s3(file,f'trs_data/{metadata.title}/{file.filename}')
             file_urls.append(file_url)
-
+        image_url = await storage.upload_to_s3(image, f'trs_data/{metadata.title}/thumbnail.png')
         file_url_header =  f'trs_data/{metadata.title}/'
 
         await database_client.add_trs_creation_request(model_name,metadata.title,metadata.description,current_user.email, file_url_header)
