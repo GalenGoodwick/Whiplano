@@ -44,8 +44,12 @@ const createNft = async (name,ImagePath, MetadataPath) => {
 
 
   // You will need to us fs and navigate the filesystem to
-  const walletFile = fs.readFileSync(path.join(__dirname, './keypair.json'));
-  const secretKey = JSON.parse(walletFile); // Parse JSON to get the array
+  const secretKeyString = process.env.CENTRAL_WALLET_KEY;
+  if (!secretKeyString) {
+    throw new Error("CENTRAL_WALLET_KEY is not set in environment variables");
+  }
+  // Parse the stringified array to get the array of numbers (the secret key)
+  const secretKey = JSON.parse(secretKeyString);
   let keypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array(secretKey));
   const signer = createSignerFromKeypair(umi, keypair);
   umi.use(signerIdentity(signer));
