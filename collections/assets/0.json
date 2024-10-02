@@ -1,18 +1,25 @@
-{
-  "name": "Numbers #0",
-  "symbol": "NUMBERS",
-  "image": "0.png",
-  "properties": {
-    "files": [{ "uri": "0.png", "type": "image/png" }],
-    "category": "image",
-    "creators": [
+const metadata = {
+  name: "My Nft",
+  description: "This is an Nft on Solana",
+  image: imageUri,
+  external_url: "https://example.com",
+  attributes: [
+    {
+      trait_type: "number",
+      value: number_of_trs,
+    },
+    {
+      trait_type: "creator",
+      value: creator_email,
+    },
+  ],
+  properties: {
+    files: [
       {
-        "address": "4xbJp9sjeTEhheUDg8M1nJUomZcGmFZsjt9Gg3RQZAWp",
-        "share": 100
-      }
-    ]
+        uri: imageUri,
+        type: "image/jpeg",
+      },
+    ],
+    category: "image",
   },
-  "description": "A set of test NFTs for the Solana blockchain",
-  "seller_fee_basis_points": 500,
-  "attributes": [{ "trait_type": "Number", "value": "0" }]
-}
+};

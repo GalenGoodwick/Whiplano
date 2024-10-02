@@ -41,13 +41,13 @@ async def get_token_account_address(mint_address):
         resp = await client.get_token_accounts_by_owner(central_wallet,opts)
         resp  = resp.to_json()
         resp = json.loads(resp)
-        
+
         token_account_address = resp['result']['value'][0]['pubkey']
         print(token_account_address)
         return token_account_address
     except Exception as e:
+        
         print(f"Error: {e}")
-
 class TransactionCreator:
     def __init__(self, token_account_address):
         self.token_account_address = token_account_address
