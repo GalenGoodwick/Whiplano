@@ -345,9 +345,11 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 async def create_trs_request(
     current_user: User = Depends(get_current_user),
     model_name: str = Form(...),
-    metadata: Metadata = Form(...),
+    title: str = Form(...),
+    description : str = Form(...),
     files: List[UploadFile] = File(...),
-    image: UploadFile = File(...)
+    image: UploadFile = File(...),
+    
 ):
     """
     This function creates a TRS creation request by uploading files to a storage service,
