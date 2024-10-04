@@ -374,12 +374,12 @@ async def create_trs_request(
     try:
         file_urls = []
         for file in files:
-            file_url = await storage.upload_to_s3(file,f'trs_data/{metadata.title}/{file.filename}')
+            file_url = await storage.upload_to_s3(file,f'trs_data/{title}/{file.filename}')
             file_urls.append(file_url)
-        image_url = await storage.upload_to_s3(image, f'trs_data/{metadata.title}/thumbnail.png')
-        file_url_header =  f'trs_data/{metadata.title}/'
+        image_url = await storage.upload_to_s3(image, f'trs_data/{title}/thumbnail.png')
+        file_url_header =  f'trs_data/{title}/'
 
-        await database_client.add_trs_creation_request(model_name,metadata.title,metadata.description,current_user.email, file_url_header)
+        await database_client.add_trs_creation_request(model_name,title,description,current_user.email, file_url_header)
 
         return JSONResponse(status_code= 200, content = {"message":"Trs creation request submitted succesfully. "})
     except Exception as e:
