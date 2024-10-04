@@ -264,7 +264,7 @@ async def add_admin(email: str, dependencies = [Depends(get_current_user)]) -> s
     """
     return await database_client.add_admin(email)
 
-@app.post("/admin/creation_requests",dependencies = [Depends(get_current_user)],tags=["Admin"], summary="For getting the TRS creation requests", description="Returns the list of TRS creation requests currently pending for admins to approve. ")
+@app.get("/admin/creation_requests",dependencies = [Depends(get_current_user)],tags=["Admin"], summary="For getting the TRS creation requests", description="Returns the list of TRS creation requests currently pending for admins to approve. ")
 async def admin_creation_requests():
     try:
         data = await database_client.get_trs_creation_requests('pending')
