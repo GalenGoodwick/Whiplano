@@ -64,12 +64,12 @@ def download_file(object_name, download_path):
         directory = os.path.dirname(download_path)
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-            print(f"Directory '{directory}' created.")
+            logger.info(f"Directory '{directory}' created.")
 
         # Download the file
         s3.Bucket(BUCKET_NAME).download_file(object_name, download_path)
-        print(f"File '{object_name}' downloaded successfully to '{download_path}'.")
+        logger.info(f"File '{object_name}' downloaded successfully to '{download_path}'.")
     
     except Exception as e:
-        print(f"Error downloading file: {e}")
+        logger.info(f"Error downloading file: {e}")
         

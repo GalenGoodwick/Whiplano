@@ -64,7 +64,7 @@ const createNft = async (name,ImagePath, MetadataPath) => {
   // You will need to understand the concept of pathing from a computing perspective.
 
   const imageFile = fs.readFileSync(
-    path.join(__dirname, ImagePath)
+    path.join(ImagePath)
   );
 
   // Use `createGenericFile` to transform the file into a `GenericFile` type
@@ -90,7 +90,7 @@ const createNft = async (name,ImagePath, MetadataPath) => {
   //
   // ** Upload Metadata to Arweave **
   //
-  const metadataJson = fs.readFileSync(path.join(__dirname, MetadataPath));
+  const metadataJson = fs.readFileSync(path.join( MetadataPath));
   const metadata = JSON.parse(metadataJson);
 
   // Replace the image URI in the metadata with the uploaded image URI
