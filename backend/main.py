@@ -662,7 +662,7 @@ async def marketplace_remove(collection_name: str, number: int, user: User = Dep
     try:
         wallet = await database_client.get_wallet_formatted(user.id)
         req_wallet = []
-        for i in wallet: 
+        for i in wallet['trs']: 
             if i['collection_name'] == collection_name and i['marketplace'] == 1 and i['artisan'] == 0:
                 req_wallet.append(i)
 
@@ -710,7 +710,7 @@ async def artisan_deactivate(collection_name: str, number: int, user: User = Dep
     try:
         wallet = await database_client.get_wallet_formatted(user.id)
         req_wallet = []
-        for i in wallet: 
+        for i in wallet['trs']: 
             if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 1:
                 req_wallet.append(i)
 
