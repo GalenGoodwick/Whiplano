@@ -1088,9 +1088,6 @@ class DatabaseManager:
 
         if not self.connection:
             logger.critical("No Database connection.")
-        elif not await self.get_user(id):
-            logger.info(f"Creation request not found : {id}")
-            return None
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)
