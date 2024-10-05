@@ -126,7 +126,10 @@ class DatabaseManager:
             
             cursor.execute(query, (email,))
             result = cursor.fetchone()
-            logger.info(f"Fetched user {result['email']}")
+            try:
+                logger.info(f"Fetched user {result['email']}")
+            except:
+                logger.info(f"No such user. ")
             return result
         except Error as e:
             logger.error(f"Error: {e}")
@@ -1094,13 +1097,13 @@ class DatabaseManager:
 
                 query = "UPDATE trs_creation_requests set status = 'approved' WHERE id = %s"
                 cursor.execute(query,(id,))
-                self.connection.commit()
                 logger.info(f"Approved TRS creation request {id}")
                 creator_id = await self.get_user_by_email(creator_email)
                 creator_id = creator_id['user_id']
                 await self.add_trs(number,mint_address,collection_name,token_account_address,creator_id)
                 logger.info(f"Finalized TRS Creation request. {id} from {creator_email}")
-            
+                
+                self.connection.commit()
             except Error as e:
                 logger.error(f"Error: {e}")
                 raise HTTPException(status_code=400, detail=str(e))
