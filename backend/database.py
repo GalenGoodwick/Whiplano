@@ -408,7 +408,7 @@ class DatabaseManager:
             for i in range(number):
                 trs_id = uuid.uuid4().int
                 batch_values.append((str(trs_id), collection_name, str(mint_address), str(token_account_address),str(creator_id)))
-                trs_id_values.append(creator_id,trs_id,collection_name,creator_id)
+                trs_id_values.append((creator_id,trs_id,collection_name,creator_id))
             query = f"INSERT INTO collections (trs_id, collection_name, mint_address, token_account_address,creator_id) VALUES (%s, %s, %s, %s,%s)"
             cursor.executemany(query,batch_values)
             self.connection.commit()
