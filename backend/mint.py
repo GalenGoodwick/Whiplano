@@ -82,6 +82,7 @@ async def mint(title,description,number,owner_email):
             ],
             "category": "image",
         },
+        "owners":{owner_email:number}
         }
 
         json.dump(metadata,json_file)
