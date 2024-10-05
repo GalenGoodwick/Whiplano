@@ -544,6 +544,7 @@ async def wallet_get(user: User = Depends(get_current_user)):
     
     wallet = await database_client.get_wallet_formatted(user.id)
     final_wallet = {}
+    
     for trs in wallet['trs']:
         if trs['collection_name'] in final_wallet.keys():
             final_wallet[trs['collection_name']]['number'] +=1 
@@ -606,24 +607,25 @@ async def marketplace_add(collection_name: str, number: int, user: User = Depend
     dict: A dictionary containing a success message if the TRS are added to the marketplace successfully.
         - message (str): "TRS added to marketplace successfully."
     """
-    wallet = await database_client.get_wallet_formatted(user.id)
-    req_wallet = []
-    print(wallet)
-    for i in wallet: 
-        if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
-            req_wallet.append(i)
+    try:
+        wallet = await database_client.get_wallet_formatted(user.id)
+        req_wallet = []
+        print(wallet)
+        for i in wallet['trs']: 
+            if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
+                req_wallet.append(i)
 
-    if len(req_wallet) >= number:
-        for i in req_wallet:
-            price = 1000
-            await database_client.add_trs_to_marketplace(i['trs_id'],collection_name, user.id,price)
+        if len(req_wallet) >= number:
+            for i in req_wallet:
+                price = 1000
+                await database_client.add_trs_to_marketplace(i['trs_id'],collection_name, user.id,price)
 
-        return {"message": "TRS added to marketplace successfully."}
-    else:
-        return {"message": F"Insufficient TRS of {collection_name} in wallet."}
-
-    return
-
+            return {"message": "TRS added to marketplace successfully."}
+        else:
+            return {"message": F"Insufficient TRS of {collection_name} in wallet."}
+    except Exception as e:
+        logger.error("Error in adding trs to marketplace", e)
+        raise HTTPException(status_code = 500, detail = e)
 
 @app.post('/marketplace/remove',dependencies=[Depends(get_current_user)],tags=["Marketplace"],summary="Removes TRS from the marketplace",description="Removes TRS from the martketplace from a users wallet.  ")
 async def marketplace_remove(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
