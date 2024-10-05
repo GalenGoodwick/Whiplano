@@ -107,6 +107,8 @@ async def root():
         - message (str): "App is running."
     """
     logger.info("App is running.")
+    current_directory = os.getcwd()
+    return ("Current working directory:", current_directory)
     return {"message": "App is running."}
 
 @app.post("/login", response_model=Token,tags=["Authentication"], summary="Logs in the User", description="Used to log in users via email/password")

@@ -29,7 +29,7 @@ def run_mint_script(image_path, metadata_path, name):
     try:
         # Run the JS script with Node.js
         result = subprocess.run(
-            ['node', './backend/mint.js', image_path, metadata_path, name], 
+            ['node', '/tmp/backend/mint.js', image_path, metadata_path, name], 
             check=True, 
             capture_output=True,
             text=True
@@ -44,8 +44,8 @@ def run_mint_script(image_path, metadata_path, name):
         return None
 
 async def mint(title,description,number,owner_email):
-    image_path = f'../collections/{title}/thumbnail'
-    metadata_path = f'../collections/{title}/metadata.json'
+    image_path = f'/tmp/collections/{title}/thumbnail'
+    metadata_path = f'/tmp/collections/{title}/metadata.json'
     download_file(f'{title}/thumbnail.png', image_path)
     with open(metadata_path, 'w') as json_file:
         metadata = {
