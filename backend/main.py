@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Query,Depends,Form,status, Request, 
 from backend import database, paypal, utils, storage,mint
 from backend import transaction as transaction_module
 from typing import Optional, List
+from solders.pubkey import Pubkey
 from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta,date
 import subprocess
@@ -282,7 +283,7 @@ async def admin_approve(id: int):
     trs_creation_data = await database_client.get_trs_creation_data(id)
     trs_creation_data = trs_creation_data[0]
     mint_address = await mint.mint(trs_creation_data['title'],trs_creation_data['description'],number,trs_creation_data['creator_email'])
-    token_account_address = await transaction_module.get_token_account_address(mint_address)
+    token_account_address = await transaction_module.get_token_account_address(Pubkey.from_string(mint_address))
     await database_client.approve_trs_creation_request(id,trs_creation_data['creator_email'],number,mint_address,trs_creation_data['title'],token_account_address)
     return {"message":"TRS Succesfully created. "}
 @app.get("/callback/google", response_model = Token)
