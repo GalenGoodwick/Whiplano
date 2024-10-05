@@ -13,7 +13,10 @@ import asyncio
 from solders.pubkey import Pubkey
 dotenv.load_dotenv()
 
-
+from backend.logging_config import logging_config  # Import the configuration file
+import logging.config
+logging.config.dictConfig(logging_config)
+logger = logging.getLogger("mint")
 database_password = os.getenv("DATABASE_PASSWORD")
 central_key = os.getenv('CENTRAL_WALLET_PUBKEY')
 database = DatabaseManager(
@@ -37,10 +40,11 @@ def run_mint_script(image_path, metadata_path, name):
         output = result.stdout.strip()
         data = json.loads(output)
         mint_address = data.get('mintAddress')
+        logger.info(f"Minted NFT with mint address :{mint_address} ")
         return mint_address
 
     except subprocess.CalledProcessError as e:
-        print(f"Error running JS script: {e.stderr.decode('utf-8')}")
+        logger.error(f"Error running JS script: {e.stderr}")
         return None
 
 async def mint(title,description,number,owner_email):

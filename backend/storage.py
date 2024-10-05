@@ -14,7 +14,7 @@ import io
 from backend.logging_config import logging_config  # Import the configuration file
 import logging.config
 logging.config.dictConfig(logging_config)
-logger = logging.getLogger("main")
+logger = logging.getLogger("storage")
 
 load_dotenv()
 
@@ -65,7 +65,7 @@ def download_file(object_name, download_path):
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
             print(f"Directory '{directory}' created.")
-    
+
         # Download the file
         s3.Bucket(BUCKET_NAME).download_file(object_name, download_path)
         print(f"File '{object_name}' downloaded successfully to '{download_path}'.")
