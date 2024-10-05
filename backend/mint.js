@@ -117,8 +117,6 @@ const createNft = async (name,ImagePath, MetadataPath) => {
     sellerFeeBasisPoints: percentAmount(1.0),
     tokenStandard: TokenStandard.NonFungible,
   }).sendAndConfirm(umi)
-  console.log("HELLO")
-  console.log(mint.publicKey)
   await mintV1(umi, {
     mint: mint.publicKey,
     authority:signer,
@@ -129,7 +127,7 @@ const createNft = async (name,ImagePath, MetadataPath) => {
   }).sendAndConfirm(umi)
 
   const recipientPublicKey = signer.publicKey; // Ensure recipientWallet is a valid public key
-  console.log(mintAddress)
+
   
   const asset = await fetchDigitalAsset(umi, mint.publicKey)
   console.log(JSON.stringify({
