@@ -217,7 +217,7 @@ class DatabaseManager:
         finally:
             cursor.close()
 
-    async def add_asset(self, user_id, trs_id, collection_id,creator):
+    async def add_asset(self, values):
         """
         Adds a new asset (token) to the user's wallet in the database.
 
@@ -240,10 +240,9 @@ class DatabaseManager:
             cursor = self.connection.cursor()
             query = f"INSERT INTO trs (user_id,trs_id,collection_name,creator) VALUES (%s, %s,%s,%s)"
 
-            values = (user_id, trs_id, collection_id,creator)
-            cursor.execute(query, values)
+            cursor.executemany(query, values)
             self.connection.commit()
-            logger.info(f"Token {trs_id} added to {user_id}'s wallet.")
+            logger.info(f"Tokens added succesfully. ")
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
@@ -404,16 +403,17 @@ class DatabaseManager:
             return
         try:
             cursor = self.connection.cursor()
+            batch_values = []
+            trs_id_values = []
             for i in range(number):
                 trs_id = uuid.uuid4().int
-                query = f"INSERT INTO collections (trs_id, collection_name, mint_address, token_account_address,creator_id) VALUES (%s, %s, %s, %s,%s)"
-                
-                values =  (str(trs_id), collection_name, str(mint_address), str(token_account_address),str(creator_id))
-                cursor.execute(query, values)
-                self.connection.commit()
-                logger.info(f"Token {trs_id} ; {str(i+1)} of collection {collection_name} added successfully")
-                await self.add_asset(creator_id, trs_id, collection_name,creator_id)
-                
+                batch_values.append((str(trs_id), collection_name, str(mint_address), str(token_account_address),str(creator_id)))
+                trs_id_values.append(creator_id,trs_id,collection_name,creator_id)
+            query = f"INSERT INTO collections (trs_id, collection_name, mint_address, token_account_address,creator_id) VALUES (%s, %s, %s, %s,%s)"
+            cursor.executemany(query,batch_values)
+            self.connection.commit()
+            await self.add_asset(trs_id_values)       
+            logger.info(f"Added {number} tokens of collection name {collection_name} to {creator_id}.")
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
