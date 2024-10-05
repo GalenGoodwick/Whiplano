@@ -136,7 +136,7 @@ const createNft = async (name,ImagePath, MetadataPath) => {
     mintAddress: mint.publicKey
   }));
 }
-console.log("SCRIPT IS RUNNIGN")
+
 
 // Get command-line arguments
 createNft(name,imagePath, metadataPath).then((nftSigner) => {

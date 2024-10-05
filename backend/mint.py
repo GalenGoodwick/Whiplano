@@ -42,7 +42,7 @@ def run_mint_script(image_path, metadata_path, name):
 
         print("JS script stdout:", output)  # This will log console.log outputs
         print("JS script stderr:", error_output)
-        print("OUTPUT GIVEN",  output)
+        
         raise ZeroDivisionError
         data = json.loads(output)
         mint_address = data.get('mintAddress')
@@ -54,8 +54,8 @@ def run_mint_script(image_path, metadata_path, name):
         return None
 
 async def mint(title,description,number,owner_email):
-    image_path = f'/tmp/collections/{title}/thumbnail'
-    metadata_path = f'/tmp/collections/{title}/metadata.json'
+    image_path = f'../tmp/collections/{title}/thumbnail'
+    metadata_path = f'../tmp/collections/{title}/metadata.json'
     download_file(f'trs_data/{title}/thumbnail.png', image_path)
     with open(metadata_path, 'w') as json_file:
         metadata = {
