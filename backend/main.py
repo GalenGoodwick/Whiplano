@@ -622,6 +622,7 @@ async def marketplace_add(collection_name: str, number: int, user: User = Depend
         req_wallet = []
         
         for i in wallet['trs']: 
+            logger.debug(i)
             if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
                 req_wallet.append(i)
 

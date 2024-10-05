@@ -704,6 +704,7 @@ class DatabaseManager:
                 marketplace_trs = []
                 none_trs = []
                 for i in result: 
+                    logger.debug(i)
                     if i['creator'] == user_id:
                         created_trs.append(i)
                     if i['marketplace'] == 1:
@@ -836,7 +837,7 @@ class DatabaseManager:
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
-                query = "SELECT  collection_name, bid_price, COUNT(*) AS number_of_trs from  marketplace WHERE  order_type = 'buy' GROUP BY collection_name,bid_price "
+                query = "SELECT  collection_name, bid_price, COUNT(*) AS number_of_trs from  marketplace GROUP BY collection_name,bid_price "
 
                 cursor.execute(query)
                 results = cursor.fetchall()
