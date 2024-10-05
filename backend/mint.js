@@ -127,7 +127,7 @@ const createNft = async (name,ImagePath, MetadataPath) => {
   }).sendAndConfirm(umi)
 
   const recipientPublicKey = signer.publicKey; // Ensure recipientWallet is a valid public key
-
+  console.log(mintAddress)
   
   const asset = await fetchDigitalAsset(umi, mint.publicKey)
   console.log(JSON.stringify({

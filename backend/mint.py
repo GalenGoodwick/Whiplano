@@ -38,6 +38,7 @@ def run_mint_script(image_path, metadata_path, name):
             text=True
         )
         output = result.stdout.strip()
+        print(output)
         data = json.loads(output)
         mint_address = data.get('mintAddress')
         logger.info(f"Minted NFT with mint address :{mint_address} ")
