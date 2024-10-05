@@ -58,12 +58,32 @@ async def mint(title,description,number,owner_email):
     metadata_path = f'/tmp/collections/{title}/metadata.json'
     download_file(f'trs_data/{title}/thumbnail.png', image_path)
     with open(metadata_path, 'w') as json_file:
+        
         metadata = {
-                "title": title,
-                "description":description,
-                "number":number,
-                "owner":owner_email
-                }
+            "name": title,
+            "description": description,
+            "image": "imageUri",
+            "external_url": "https://example.com",
+            "attributes": [
+                {
+                    'trait_type': "number",
+                    "value": number,
+                },
+                {
+                "trait_type": "creator",
+                "value": owner_email,
+                },
+             ],
+        "properties": {
+            "files": [
+            {
+                "uri": "imageUri",
+                "type": "image/jpeg",
+            },
+            ],
+            "category": "image",
+        },
+        }
 
         json.dump(metadata,json_file)
     
