@@ -38,7 +38,12 @@ def run_mint_script(image_path, metadata_path, name):
             text=True
         )
         output = result.stdout.strip()
+        error_output = result.stderr.strip()
+
+        print("JS script stdout:", output)  # This will log console.log outputs
+        print("JS script stderr:", error_output)
         print("OUTPUT GIVEN",  output)
+        raise ZeroDivisionError
         data = json.loads(output)
         mint_address = data.get('mintAddress')
         logger.info(f"Minted NFT with mint address :{mint_address} ")

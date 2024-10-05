@@ -117,6 +117,8 @@ const createNft = async (name,ImagePath, MetadataPath) => {
     sellerFeeBasisPoints: percentAmount(1.0),
     tokenStandard: TokenStandard.NonFungible,
   }).sendAndConfirm(umi)
+  console.log("HELLO")
+  console.log(mint.publicKey)
   await mintV1(umi, {
     mint: mint.publicKey,
     authority:signer,
@@ -134,7 +136,7 @@ const createNft = async (name,ImagePath, MetadataPath) => {
     mintAddress: mint.publicKey
   }));
 }
-
+console.log("SCRIPT IS RUNNIGN")
 
 // Get command-line arguments
 createNft(name,imagePath, metadataPath).then((nftSigner) => {
