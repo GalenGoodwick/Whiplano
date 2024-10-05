@@ -14,7 +14,7 @@ import io
 from backend.logging_config import logging_config  # Import the configuration file
 import logging.config
 logging.config.dictConfig(logging_config)
-logger = logging.getLogger("main")
+logger = logging.getLogger("storage")
 
 load_dotenv()
 
@@ -57,11 +57,19 @@ async def upload_to_s3(file: UploadFile, object_name: str):
         logger.error(f"Error uploading file: {e}")
         raise HTTPException(status_code=500, detail=f"Error uploading file: {e}")
 
-def download_file( object_name, download_path):
+def download_file(object_name, download_path):
     """Download a file from Filebase S3 bucket."""
     try:
+        # Ensure the directory exists
+        directory = os.path.dirname(download_path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+            logger.info(f"Directory '{directory}' created.")
+
+        # Download the file
         s3.Bucket(BUCKET_NAME).download_file(object_name, download_path)
-        print(f"File '{object_name}' downloaded successfully to '{download_path}'.")
+        logger.info(f"File '{object_name}' downloaded successfully to '{download_path}'.")
+    
     except Exception as e:
-        print(f"Error downloading file: {e}")
+        logger.info(f"Error downloading file: {e}")
         

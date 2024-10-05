@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Query,Depends,Form,status, Request, 
 from backend import database, paypal, utils, storage,mint
 from backend import transaction as transaction_module
 from typing import Optional, List
+from solders.pubkey import Pubkey
 from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta,date
 import subprocess
@@ -107,6 +108,8 @@ async def root():
         - message (str): "App is running."
     """
     logger.info("App is running.")
+    current_directory = os.getcwd()
+    return ("Current working directory:", current_directory)
     return {"message": "App is running."}
 
 @app.post("/login", response_model=Token,tags=["Authentication"], summary="Logs in the User", description="Used to log in users via email/password")
@@ -116,7 +119,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
 
     Parameters:
     email (str): The email of the user.
-    password (str): The password of the user.
+    password (str): The password of the user.   
 
     Returns:
     dict: A dictionary containing the access token and token type.
@@ -264,7 +267,7 @@ async def add_admin(email: str, dependencies = [Depends(get_current_user)]) -> s
     """
     return await database_client.add_admin(email)
 
-@app.post("/admin/creation_requests",dependencies = [Depends(get_current_user)],tags=["Admin"], summary="For getting the TRS creation requests", description="Returns the list of TRS creation requests currently pending for admins to approve. ")
+@app.get("/admin/creation_requests",dependencies = [Depends(get_current_user)],tags=["Admin"], summary="For getting the TRS creation requests", description="Returns the list of TRS creation requests currently pending for admins to approve. ")
 async def admin_creation_requests():
     try:
         data = await database_client.get_trs_creation_requests('pending')
@@ -278,8 +281,9 @@ async def admin_creation_requests():
 async def admin_approve(id: int):
     number = 1000
     trs_creation_data = await database_client.get_trs_creation_data(id)
+    trs_creation_data = trs_creation_data[0]
     mint_address = await mint.mint(trs_creation_data['title'],trs_creation_data['description'],number,trs_creation_data['creator_email'])
-    token_account_address = await transaction_module.get_token_account_address(mint_address)
+    token_account_address = await transaction_module.get_token_account_address(Pubkey.from_string(mint_address))
     await database_client.approve_trs_creation_request(id,trs_creation_data['creator_email'],number,mint_address,trs_creation_data['title'],token_account_address)
     return {"message":"TRS Succesfully created. "}
 @app.get("/callback/google", response_model = Token)
@@ -345,9 +349,11 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 async def create_trs_request(
     current_user: User = Depends(get_current_user),
     model_name: str = Form(...),
-    metadata: Metadata = Form(...),
+    title: str = Form(...),
+    description : str = Form(...),
     files: List[UploadFile] = File(...),
-    image: UploadFile = File(...)
+    image: UploadFile = File(...),
+    
 ):
     """
     This function creates a TRS creation request by uploading files to a storage service,
@@ -372,12 +378,12 @@ async def create_trs_request(
     try:
         file_urls = []
         for file in files:
-            file_url = await storage.upload_to_s3(file,f'trs_data/{metadata.title}/{file.filename}')
+            file_url = await storage.upload_to_s3(file,f'trs_data/{title}/{file.filename}')
             file_urls.append(file_url)
-        image_url = await storage.upload_to_s3(image, f'trs_data/{metadata.title}/thumbnail.png')
-        file_url_header =  f'trs_data/{metadata.title}/'
+        image_url = await storage.upload_to_s3(image, f'trs_data/{title}/thumbnail.png')
+        file_url_header =  f'trs_data/{title}/'
 
-        await database_client.add_trs_creation_request(model_name,metadata.title,metadata.description,current_user.email, file_url_header)
+        await database_client.add_trs_creation_request(model_name,title,description,current_user.email, file_url_header)
 
         return JSONResponse(status_code= 200, content = {"message":"Trs creation request submitted succesfully. "})
     except Exception as e:
@@ -535,27 +541,30 @@ async def wallet_get(user: User = Depends(get_current_user)):
         - trs_on_marketplace: A list of TRS on the marketplace.
         - trs_with_artisan_rights: A list of TRS with artisan rights.
     """
-    
-    wallet = await database_client.get_wallet_formatted(user.id)
-    final_wallet = {}
-    for trs in wallet['trs']:
-        if trs['collection_name'] in final_wallet.keys():
-            final_wallet[trs['collection_name']]['number'] +=1 
-            if trs['artisan'] == 1:
-                final_wallet[trs['collection_name']]['artisan'] +=1
-            elif trs['marketplace'] == 1:
-                final_wallet[trs['collection_name']]['marketplace'] +=1 
-            elif trs['creator'] == user.id:
-                final_wallet[trs['collection_name']]['created'] = True
-        else:
-            final_wallet[trs['collection_name']] = {'number': 1, 'created': False, 'artisan': 0,'marketplace': 0,'data':"Collection data, will be added later. Gonna be images, descriptions, creator, etc. "}
-            if trs['artisan'] == 1:
-                final_wallet[trs['collection_name']]['artisan'] +=1
-            elif trs['marketplace'] == 1:
-                final_wallet[trs['collection_name']]['marketplace'] +=1 
+    try:
+        wallet = await database_client.get_wallet_formatted(user.id)
+        final_wallet = {}
+        
+        for trs in wallet['trs']:
+            if trs['collection_name'] in final_wallet.keys():
+                final_wallet[trs['collection_name']]['number'] +=1 
+                if trs['artisan'] == 1:
+                    final_wallet[trs['collection_name']]['artisan'] +=1
+                elif trs['marketplace'] == 1:
+                    final_wallet[trs['collection_name']]['marketplace'] +=1 
+                elif trs['creator'] == user.id:
+                    final_wallet[trs['collection_name']]['created'] = True
+            else:
+                final_wallet[trs['collection_name']] = {'number': 1, 'created': False, 'artisan': 0,'marketplace': 0,'data':"Collection data, will be added later. Gonna be images, descriptions, creator, etc. "}
+                if trs['artisan'] == 1:
+                    final_wallet[trs['collection_name']]['artisan'] +=1
+                elif trs['marketplace'] == 1:
+                    final_wallet[trs['collection_name']]['marketplace'] +=1 
 
-    return final_wallet
-
+        return final_wallet
+    except Exception as e:
+        logger.error(f"Error fetching wallet: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get('/marketplace',tags=["Marketplace"],summary="Fetches the marketplace",description="Fetches all the martketplace entries, along with the respective data. ")
@@ -572,9 +581,13 @@ async def marketplace():
           - price: The price of the TRS on the marketplace.
 
     """
-    trs_on_marketplace = await database_client.get_marketplace_all()
-    return trs_on_marketplace
-
+    try:
+        trs_on_marketplace = await database_client.get_marketplace_all()
+        return trs_on_marketplace
+    except Exception as e:
+        logger.error(f"Error fetching marketplace: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
 @app.get('/marketplace/collection',tags=["Marketplace"],summary="Fetches the marketplace for one collection",description="Fetches the martketplace entries for one specific collection, along with the respective data. ")
 async def marketplace_collection(collection_name: str):
     """
@@ -583,40 +596,52 @@ async def marketplace_collection(collection_name: str):
     Parameters:
     collection_name (str): The name of the collection.
     """
-    trs_on_marketplace = await database_client.get_marketplace_collection(collection_name)
-    return trs_on_marketplace
+    try:
+        trs_on_marketplace = await database_client.get_marketplace_collection(collection_name)
+        return trs_on_marketplace
+    except Exception as e:
+        logger.error(f"Error fetching marketplace for collection {collection_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post('/marketplace/place',dependencies=[Depends(get_current_user)],tags=["Marketplace"],summary="Adds TRS to the marketplace",description="Adds TRS to the martketplace from a users wallet.  ")
-async def marketplace_add(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
+async def marketplace_add(collection_name: str, number: int,price:int, user: User = Depends(get_current_user)) -> dict:
     """
     This function adds TRS of a specific collection to the marketplace.
 
     Parameters:
     collection_name (str): The name of the collection.
     number (int): The number of TRS to be added to the marketplace.
+    price (int): The bid price for the TRS in the marketplace.
     user (User): The user making the request. This parameter is obtained from the 'get_current_user' function.
 
     Returns:
     dict: A dictionary containing a success message if the TRS are added to the marketplace successfully.
         - message (str): "TRS added to marketplace successfully."
     """
-    wallet = await database_client.get_wallet_formatted(user.id)
-    req_wallet = []
-    for i in wallet: 
-        if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
-            req_wallet.append(i)
+    try:
+        wallet = await database_client.get_wallet_formatted(user.id)
+        req_wallet = []
+        
+        for i in wallet['trs']: 
+            logger.debug(i)
+            if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
+                req_wallet.append(i)
 
-    if len(req_wallet) >= number:
-        for i in req_wallet:
-            price = 1000
-            await database_client.add_trs_to_marketplace(i['trs_id'],collection_name, user.id,price)
+        if len(req_wallet) >= number:   
+            values = []
+            values2 = []
+            for i in req_wallet[:number]:
+                price = 1000
+                values.append((i['trs_id'],collection_name, user.id,price))
+                values2.append((i['trs_id'],))
+            await database_client.add_trs_to_marketplace(user.id,values,values2,i['collection_name'])
 
-        return {"message": "TRS added to marketplace successfully."}
-    else:
-        return {"message": F"Insufficient TRS of {collection_name} in wallet."}
-
-    return
-
+            return {"message": "TRS added to marketplace successfully."}
+        else:
+            return {"message": F"Insufficient TRS of {collection_name} in wallet."}
+    except Exception as e:
+        logger.error("Error in adding trs to marketplace", e)
+        raise HTTPException(status_code = 500, detail = e)
 
 @app.post('/marketplace/remove',dependencies=[Depends(get_current_user)],tags=["Marketplace"],summary="Removes TRS from the marketplace",description="Removes TRS from the martketplace from a users wallet.  ")
 async def marketplace_remove(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
@@ -634,60 +659,72 @@ async def marketplace_remove(collection_name: str, number: int, user: User = Dep
     If there are not enough TRS in the user's wallet for the specified collection, the function returns:
         - message (str): "Insufficient TRS of {collection_name} in wallet."
     """
-    wallet = await database_client.get_wallet_formatted(user.id)
-    req_wallet = []
-    for i in wallet: 
-        if i['collection_name'] == collection_name and i['marketplace'] == 1 and i['artisan'] == 0:
-            req_wallet.append(i)
+    try:
+        wallet = await database_client.get_wallet_formatted(user.id)
+        req_wallet = []
+        for i in wallet['trs']: 
+            if i['collection_name'] == collection_name and i['marketplace'] == 1 and i['artisan'] == 0:
+                req_wallet.append(i)
 
-    if len(req_wallet) >= number:
-        for i in req_wallet:
-            await database_client.remove_trs_from_marketplace(i['trs_id'],collection_name, user.id)
+        if len(req_wallet) >= number:
+            values = []
+            for i in req_wallet[:number]:
+                values.append((i['trs_id'],))
+            await database_client.remove_trs_from_marketplace(values,user.id)
 
-        return {"message": "TRS removed from marketplace successfully."}
-    else:
-        return {"message": F"Insufficient TRS of {collection_name} in wallet."}
-
-    
+            return {"message": "TRS removed from marketplace successfully."}
+        else:
+            return {"message": F"Insufficient TRS of {collection_name} in wallet."}
+    except Exception as e:
+        logger.error("Error in removing trs from marketplace", e)
+        raise HTTPException(status_code = 500, detail = e)
 
 
 @app.post('/artisan/activate',dependencies=[Depends(get_current_user)],tags=["User"],summary="Activates artisan rights for a user's TRS",description="Activates artisan rights for a user's TRS")
 async def artisan_activate(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
+    try:
+        wallet = await database_client.get_wallet_formatted(user.id)
+        req_wallet = []
+        for i in wallet['trs']: 
+            logger.debug(i)
+            if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
+                req_wallet.append(i)
+
+        if len(req_wallet) >= number:
+            values = []
+            for i in req_wallet[:number]:
+                values.append((i['trs_id'],))
+            await database_client.activate_artisan_trs(values, user.id)
+
+            return {"message": "TRS added to marketplace successfully."}
+        else:
+            return {"message": F"Insufficient TRS of {collection_name} in wallet."}
+    except Exception as e:
+        logger.error("Error in activating artisan rights on trs. ", e)
+        raise HTTPException(status_code = 500, detail = e)
     
-    wallet = await database_client.get_wallet_formatted(user.id)
-    req_wallet = []
-    for i in wallet: 
-        if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
-            req_wallet.append(i)
-
-    if len(req_wallet) >= number:
-        for i in req_wallet:
-            price = 1000
-            await database_client.activate_artisan_trs(i['trs_id'], user.id)
-
-        return {"message": "TRS added to marketplace successfully."}
-    else:
-        return {"message": F"Insufficient TRS of {collection_name} in wallet."}
-
-    return
 
 
 @app.post('/artisan/deactivate',dependencies=[Depends(get_current_user)],tags=["User"],summary="Deactivates artisan rights for a user's TRS",description="Deactivates artisan rights for a user's TRS")
 async def artisan_deactivate(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
-    
-    wallet = await database_client.get_wallet_formatted(user.id)
-    req_wallet = []
-    for i in wallet: 
-        if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 1:
-            req_wallet.append(i)
+    try:
+        wallet = await database_client.get_wallet_formatted(user.id)
+        req_wallet = []
+        for i in wallet['trs']: 
+            if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 1:
+                req_wallet.append(i)
 
-    if len(req_wallet) >= number:
-        for i in req_wallet:
-            price = 1000
-            await database_client.deactivate_artisan_trs(i['trs_id'], user.id)
+        if len(req_wallet) >= number:
+            values = []
+            for i in req_wallet[:number]:
+                values.append(i['trs_id'])
+            await database_client.deactivate_artisan_trs(values, user.id)
 
-        return {"message": "TRS added to marketplace successfully."}
-    else:
-        return {"message": F"Insufficient TRS of {collection_name} in wallet."}
-
+            return {"message": "TRS added to marketplace successfully."}
+        else:
+            return {"message": F"Insufficient TRS of {collection_name} in wallet."}
+        
+    except Exception as e:
+        logger.error("Error in deactivating artisan rights for trs. ", e)
+        raise HTTPException(status_code = 500, detail = e)
     

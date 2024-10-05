@@ -13,7 +13,10 @@ import asyncio
 from solders.pubkey import Pubkey
 dotenv.load_dotenv()
 
-
+from backend.logging_config import logging_config  # Import the configuration file
+import logging.config
+logging.config.dictConfig(logging_config)
+logger = logging.getLogger("mint")
 database_password = os.getenv("DATABASE_PASSWORD")
 central_key = os.getenv('CENTRAL_WALLET_PUBKEY')
 database = DatabaseManager(
@@ -29,31 +32,58 @@ def run_mint_script(image_path, metadata_path, name):
     try:
         # Run the JS script with Node.js
         result = subprocess.run(
-            ['node', './backend/mint.js', image_path, metadata_path, name], 
+            ['node', '/app/backend/mint.js', image_path, metadata_path, name], 
             check=True, 
             capture_output=True,
             text=True
         )
         output = result.stdout.strip()
+        error_output = result.stderr.strip()
+
+        print("JS script stdout:", output)  # This will log console.log outputs
+        print("JS script stderr:", error_output)
+        
         data = json.loads(output)
         mint_address = data.get('mintAddress')
+        logger.info(f"Minted NFT with mint address :{mint_address} ")
         return mint_address
 
     except subprocess.CalledProcessError as e:
-        print(f"Error running JS script: {e.stderr.decode('utf-8')}")
+        logger.error(f"Error running JS script: {e.stderr}")
         return None
 
 async def mint(title,description,number,owner_email):
-    image_path = f'../collections/{title}/thumbnail'
-    metadata_path = f'../collections/{title}/metadata.json'
-    download_file(f'{title}/thumbnail.png', image_path)
+    image_path = f'/tmp/collections/{title}/thumbnail'
+    metadata_path = f'/tmp/collections/{title}/metadata.json'
+    download_file(f'trs_data/{title}/thumbnail.png', image_path)
     with open(metadata_path, 'w') as json_file:
+        
         metadata = {
-                "title": title,
-                "description":description,
-                "number":number,
-                "owner":owner_email
-                }
+            "name": title,
+            "description": description,
+            "image": "imageUri",
+            "external_url": "https://example.com",
+            "attributes": [
+                {
+                    'trait_type': "number",
+                    "value": number,
+                },
+                {
+                "trait_type": "creator",
+                "value": owner_email,
+                },
+             ],
+        "properties": {
+            "files": [
+            {
+                "uri": "imageUri",
+                "type": "image/jpeg",
+            },
+            ],
+            "category": "image",
+        },
+        "owners":{owner_email:number}
+        }
 
         json.dump(metadata,json_file)
     

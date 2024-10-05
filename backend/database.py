@@ -126,7 +126,10 @@ class DatabaseManager:
             
             cursor.execute(query, (email,))
             result = cursor.fetchone()
-            logger.info(f"Fetched user {result['email']}")
+            try:
+                logger.info(f"Fetched user {result['email']}")
+            except:
+                logger.info(f"No such user. ")
             return result
         except Error as e:
             logger.error(f"Error: {e}")
@@ -214,7 +217,7 @@ class DatabaseManager:
         finally:
             cursor.close()
 
-    async def add_asset(self, user_id, trs_id, collection_id,creator):
+    async def add_asset(self, values):
         """
         Adds a new asset (token) to the user's wallet in the database.
 
@@ -237,10 +240,9 @@ class DatabaseManager:
             cursor = self.connection.cursor()
             query = f"INSERT INTO trs (user_id,trs_id,collection_name,creator) VALUES (%s, %s,%s,%s)"
 
-            values = (user_id, trs_id, collection_id,creator)
-            cursor.execute(query, values)
+            cursor.executemany(query, values)
             self.connection.commit()
-            logger.info(f"Token {trs_id} added to {user_id}'s wallet.")
+            logger.info(f"Tokens added succesfully. ")
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
@@ -401,16 +403,17 @@ class DatabaseManager:
             return
         try:
             cursor = self.connection.cursor()
+            batch_values = []
+            trs_id_values = []
             for i in range(number):
                 trs_id = uuid.uuid4().int
-                query = f"INSERT INTO collections (trs_id, collection_name, mint_address, token_account_address,creator_id) VALUES (%s, %s, %s, %s,%s)"
-                
-                values =  (str(trs_id), collection_name, str(mint_address), str(token_account_address),str(creator_id))
-                cursor.execute(query, values)
-                self.connection.commit()
-                logger.info(f"Token {trs_id} ; {str(i+1)} of collection {collection_name} added successfully")
-                await self.add_asset(creator_id, trs_id, collection_name,creator_id)
-                
+                batch_values.append((str(trs_id), collection_name, str(mint_address), str(token_account_address),str(creator_id)))
+                trs_id_values.append((creator_id,trs_id,collection_name,creator_id))
+            query = f"INSERT INTO collections (trs_id, collection_name, mint_address, token_account_address,creator_id) VALUES (%s, %s, %s, %s,%s)"
+            cursor.executemany(query,batch_values)
+            self.connection.commit()
+            await self.add_asset(trs_id_values)       
+            logger.info(f"Added {number} tokens of collection name {collection_name} to {creator_id}.")
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
@@ -701,6 +704,7 @@ class DatabaseManager:
                 marketplace_trs = []
                 none_trs = []
                 for i in result: 
+                    logger.debug(i)
                     if i['creator'] == user_id:
                         created_trs.append(i)
                     if i['marketplace'] == 1:
@@ -727,7 +731,7 @@ class DatabaseManager:
                 
     
     
-    async def add_trs_to_marketplace(self,trs_id, collection_name, user_id,bid_price):
+    async def add_trs_to_marketplace(self,user_id,values,values2, collection_name):
         """
     Adds a token to the marketplace in the database.
 
@@ -753,13 +757,14 @@ class DatabaseManager:
                 cursor = self.connection.cursor(dictionary=True)
                 query = "INSERT INTO marketplace (trs_id,collection_name,order_type,buyer_seller_id,bid_price) VALUES (%s,%s,%s,%s,%s)"
 
-                cursor.execute(query, (trs_id,collection_name,'sell',user_id,bid_price))
+                cursor.executemany(query, values)
                 self.connection.commit()
                 query = "UPDATE trs set marketplace = 1 WHERE trs_id = %s"
-                cursor.execute(query,(trs_id,))
+                
+                cursor.executemany(query,values2)
                 self.connection.commit()
-                logger.info(f"Added trs {trs_id} of collection {collection_name} to the Marketplace")
-                return {'message':f"Added trs {trs_id} of collection {collection_name} to the Marketplace"}
+                logger.info(f"Added {len(values)} trs of collection {collection_name} to the Marketplace")
+                return {'message':f"Added trs {len(values)} of collection {collection_name} to the Marketplace"}
 
 
             except Error as e:
@@ -770,7 +775,7 @@ class DatabaseManager:
                 cursor.close()
                 
                 
-    async def remove_trs_from_marketplace(self,trs_id, collection_name, user_id):
+    async def remove_trs_from_marketplace(self, values,user_id):
         """
     Adds a token to the marketplace in the database.
 
@@ -796,13 +801,13 @@ class DatabaseManager:
                 cursor = self.connection.cursor(dictionary=True)
                 query = "DELETE FROM marketplace where trs_id = %s"
 
-                cursor.execute(query, (trs_id,))
+                cursor.executemany(query, values)
                 self.connection.commit()
                 query = "UPDATE trs set marketplace = 0 WHERE trs_id = %s"
-                cursor.execute(query,(trs_id,))
+                cursor.executemany(query,values)
                 self.connection.commit()
-                logger.info(f"Removed trs {trs_id} of collection {collection_name} from the Marketplace")
-                return {'message':f"Removed trs {trs_id} of collection {collection_name} from the Marketplace"}
+                logger.info(f"Removed trs from the Marketplace")
+                return {'message':f"Removed trs from the Marketplace"}
 
 
             except Error as e:
@@ -833,7 +838,7 @@ class DatabaseManager:
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
-                query = "SELECT  collection_name, bid_price, COUNT(*) AS number_of_trs from  marketplace WHERE  order_type = 'buy' GROUP BY collection_name,bid_price "
+                query = "SELECT  collection_name, bid_price, COUNT(*) AS number_of_trs from  marketplace GROUP BY collection_name,bid_price "
 
                 cursor.execute(query)
                 results = cursor.fetchall()
@@ -953,7 +958,7 @@ class DatabaseManager:
                 
                 
     
-    async def activate_artisan_trs(self,trs_id, user_id):
+    async def activate_artisan_trs(self,values, user_id):
         """
     Activates the artisan rights for a specific token in the database.
 
@@ -977,10 +982,10 @@ class DatabaseManager:
                 cursor = self.connection.cursor(dictionary=True)
 
                 query = "UPDATE trs set artisan = 1 WHERE trs_id = %s"
-                cursor.execute(query,(trs_id,))
+                cursor.executemany(query,values)
                 self.connection.commit()
-                logger.info(f"Activated TRS rights for {trs_id}")
-                return {'message':f"Activated TRS rights for {trs_id}"}
+                logger.info(f"Activated TRS rights for {user_id}")
+                return {'message':f"Activated TRS rights for {user_id}"}
 
 
             except Error as e:
@@ -991,7 +996,7 @@ class DatabaseManager:
                 cursor.close()
                 
     
-    async def deactivate_artisan_trs(self,trs_id, user_id):
+    async def deactivate_artisan_trs(self,values, user_id):
         """
     Deactivates the artisan rights for a specific token in the database.
 
@@ -1015,10 +1020,10 @@ class DatabaseManager:
                 cursor = self.connection.cursor(dictionary=True)
 
                 query = "UPDATE trs set artisan = 0 WHERE trs_id = %s"
-                cursor.execute(query,(trs_id,))
+                cursor.executemany(query,values)
                 self.connection.commit()
-                logger.info(f"Deactivated artisan rights for TRS {trs_id}")
-                return {'message':f"Deactivated artisan rights for TRS {trs_id}"}
+                logger.info(f"Deactivated artisan rights for TRS {user_id}")
+                return {'message':f"Deactivated artisan rights for TRS {user_id}"}
 
 
             except Error as e:
@@ -1088,21 +1093,19 @@ class DatabaseManager:
 
         if not self.connection:
             logger.critical("No Database connection.")
-        elif not await self.get_user(id):
-            logger.info(f"Creation request not found : {id}")
-            return None
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)
 
                 query = "UPDATE trs_creation_requests set status = 'approved' WHERE id = %s"
                 cursor.execute(query,(id,))
-                self.connection.commit()
                 logger.info(f"Approved TRS creation request {id}")
-                creator_id = self.get_user_by_email(creator_email)['user_id']
+                creator_id = await self.get_user_by_email(creator_email)
+                creator_id = creator_id['user_id']
                 await self.add_trs(number,mint_address,collection_name,token_account_address,creator_id)
                 logger.info(f"Finalized TRS Creation request. {id} from {creator_email}")
-            
+                
+                self.connection.commit()
             except Error as e:
                 logger.error(f"Error: {e}")
                 raise HTTPException(status_code=400, detail=str(e))
