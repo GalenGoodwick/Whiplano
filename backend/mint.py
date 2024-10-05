@@ -32,7 +32,7 @@ def run_mint_script(image_path, metadata_path, name):
     try:
         # Run the JS script with Node.js
         result = subprocess.run(
-            ['node', '/tmp/backend/mint.js', image_path, metadata_path, name], 
+            ['node', 'app/backend/mint.js', image_path, metadata_path, name], 
             check=True, 
             capture_output=True,
             text=True
