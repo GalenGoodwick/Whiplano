@@ -1096,7 +1096,8 @@ class DatabaseManager:
                 cursor.execute(query,(id,))
                 self.connection.commit()
                 logger.info(f"Approved TRS creation request {id}")
-                creator_id = self.get_user_by_email(creator_email)['user_id']
+                creator_id = await self.get_user_by_email(creator_email)
+                creator_id = creator_id['user_id']
                 await self.add_trs(number,mint_address,collection_name,token_account_address,creator_id)
                 logger.info(f"Finalized TRS Creation request. {id} from {creator_email}")
             
