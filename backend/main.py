@@ -118,7 +118,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
 
     Parameters:
     email (str): The email of the user.
-    password (str): The password of the user.
+    password (str): The password of the user.   
 
     Returns:
     dict: A dictionary containing the access token and token type.
