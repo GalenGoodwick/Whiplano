@@ -731,7 +731,7 @@ class DatabaseManager:
                 
     
     
-    async def add_trs_to_marketplace(self,trs_id, collection_name, user_id,bid_price):
+    async def add_trs_to_marketplace(self,user_id,values,values2, collection_name):
         """
     Adds a token to the marketplace in the database.
 
@@ -757,13 +757,14 @@ class DatabaseManager:
                 cursor = self.connection.cursor(dictionary=True)
                 query = "INSERT INTO marketplace (trs_id,collection_name,order_type,buyer_seller_id,bid_price) VALUES (%s,%s,%s,%s,%s)"
 
-                cursor.execute(query, (trs_id,collection_name,'sell',user_id,bid_price))
+                cursor.executemany(query, values)
                 self.connection.commit()
                 query = "UPDATE trs set marketplace = 1 WHERE trs_id = %s"
-                cursor.execute(query,(trs_id,))
+                
+                cursor.executemany(query,values2)
                 self.connection.commit()
-                logger.info(f"Added trs {trs_id} of collection {collection_name} to the Marketplace")
-                return {'message':f"Added trs {trs_id} of collection {collection_name} to the Marketplace"}
+                logger.info(f"Added {len(values)} trs of collection {collection_name} to the Marketplace")
+                return {'message':f"Added trs {len(values)} of collection {collection_name} to the Marketplace"}
 
 
             except Error as e:
@@ -774,7 +775,7 @@ class DatabaseManager:
                 cursor.close()
                 
                 
-    async def remove_trs_from_marketplace(self,trs_id, collection_name, user_id):
+    async def remove_trs_from_marketplace(self, values,user_id):
         """
     Adds a token to the marketplace in the database.
 
@@ -800,13 +801,13 @@ class DatabaseManager:
                 cursor = self.connection.cursor(dictionary=True)
                 query = "DELETE FROM marketplace where trs_id = %s"
 
-                cursor.execute(query, (trs_id,))
+                cursor.executemany(query, values)
                 self.connection.commit()
                 query = "UPDATE trs set marketplace = 0 WHERE trs_id = %s"
-                cursor.execute(query,(trs_id,))
+                cursor.executemany(query,values)
                 self.connection.commit()
-                logger.info(f"Removed trs {trs_id} of collection {collection_name} from the Marketplace")
-                return {'message':f"Removed trs {trs_id} of collection {collection_name} from the Marketplace"}
+                logger.info(f"Removed trs from the Marketplace")
+                return {'message':f"Removed trs from the Marketplace"}
 
 
             except Error as e:
@@ -957,7 +958,7 @@ class DatabaseManager:
                 
                 
     
-    async def activate_artisan_trs(self,trs_id, user_id):
+    async def activate_artisan_trs(self,values, user_id):
         """
     Activates the artisan rights for a specific token in the database.
 
@@ -981,10 +982,10 @@ class DatabaseManager:
                 cursor = self.connection.cursor(dictionary=True)
 
                 query = "UPDATE trs set artisan = 1 WHERE trs_id = %s"
-                cursor.execute(query,(trs_id,))
+                cursor.executemany(query,values)
                 self.connection.commit()
-                logger.info(f"Activated TRS rights for {trs_id}")
-                return {'message':f"Activated TRS rights for {trs_id}"}
+                logger.info(f"Activated TRS rights for {user_id}")
+                return {'message':f"Activated TRS rights for {user_id}"}
 
 
             except Error as e:
@@ -995,7 +996,7 @@ class DatabaseManager:
                 cursor.close()
                 
     
-    async def deactivate_artisan_trs(self,trs_id, user_id):
+    async def deactivate_artisan_trs(self,values, user_id):
         """
     Deactivates the artisan rights for a specific token in the database.
 
@@ -1019,10 +1020,10 @@ class DatabaseManager:
                 cursor = self.connection.cursor(dictionary=True)
 
                 query = "UPDATE trs set artisan = 0 WHERE trs_id = %s"
-                cursor.execute(query,(trs_id,))
+                cursor.executemany(query,values)
                 self.connection.commit()
-                logger.info(f"Deactivated artisan rights for TRS {trs_id}")
-                return {'message':f"Deactivated artisan rights for TRS {trs_id}"}
+                logger.info(f"Deactivated artisan rights for TRS {user_id}")
+                return {'message':f"Deactivated artisan rights for TRS {user_id}"}
 
 
             except Error as e:

@@ -604,13 +604,14 @@ async def marketplace_collection(collection_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post('/marketplace/place',dependencies=[Depends(get_current_user)],tags=["Marketplace"],summary="Adds TRS to the marketplace",description="Adds TRS to the martketplace from a users wallet.  ")
-async def marketplace_add(collection_name: str, number: int, user: User = Depends(get_current_user)) -> dict:
+async def marketplace_add(collection_name: str, number: int,price:int, user: User = Depends(get_current_user)) -> dict:
     """
     This function adds TRS of a specific collection to the marketplace.
 
     Parameters:
     collection_name (str): The name of the collection.
     number (int): The number of TRS to be added to the marketplace.
+    price (int): The bid price for the TRS in the marketplace.
     user (User): The user making the request. This parameter is obtained from the 'get_current_user' function.
 
     Returns:
@@ -626,10 +627,14 @@ async def marketplace_add(collection_name: str, number: int, user: User = Depend
             if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
                 req_wallet.append(i)
 
-        if len(req_wallet) >= number:
-            for i in req_wallet:
+        if len(req_wallet) >= number:   
+            values = []
+            values2 = []
+            for i in req_wallet[:number]:
                 price = 1000
-                await database_client.add_trs_to_marketplace(i['trs_id'],collection_name, user.id,price)
+                values.append((i['trs_id'],collection_name, user.id,price))
+                values2.append((i['trs_id'],))
+            await database_client.add_trs_to_marketplace(user.id,values,values2,i['collection_name'])
 
             return {"message": "TRS added to marketplace successfully."}
         else:
@@ -662,8 +667,10 @@ async def marketplace_remove(collection_name: str, number: int, user: User = Dep
                 req_wallet.append(i)
 
         if len(req_wallet) >= number:
-            for i in req_wallet:
-                await database_client.remove_trs_from_marketplace(i['trs_id'],collection_name, user.id)
+            values = []
+            for i in req_wallet[:number]:
+                values.append((i['trs_id'],))
+            await database_client.remove_trs_from_marketplace(values,user.id)
 
             return {"message": "TRS removed from marketplace successfully."}
         else:
@@ -684,9 +691,10 @@ async def artisan_activate(collection_name: str, number: int, user: User = Depen
                 req_wallet.append(i)
 
         if len(req_wallet) >= number:
-            for i in req_wallet:
-                price = 1000
-                await database_client.activate_artisan_trs(i['trs_id'], user.id)
+            values = []
+            for i in req_wallet[:number]:
+                values.append((i['trs_id'],))
+            await database_client.activate_artisan_trs(values, user.id)
 
             return {"message": "TRS added to marketplace successfully."}
         else:
@@ -707,9 +715,10 @@ async def artisan_deactivate(collection_name: str, number: int, user: User = Dep
                 req_wallet.append(i)
 
         if len(req_wallet) >= number:
-            for i in req_wallet:
-                price = 1000
-                await database_client.deactivate_artisan_trs(i['trs_id'], user.id)
+            values = []
+            for i in req_wallet[:number]:
+                values.append(i['trs_id'])
+            await database_client.deactivate_artisan_trs(values, user.id)
 
             return {"message": "TRS added to marketplace successfully."}
         else:
