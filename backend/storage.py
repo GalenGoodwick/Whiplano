@@ -97,8 +97,8 @@ def get_file_cid( object_name):
         
         # Extract the CID from metadata
         metadata = response.get('Metadata', {})
-        metadata = metadata.json()
-        cid = metadata['json']
+        metadata = metadata
+        cid = metadata['cid']
         
         if cid:
             logger.info(f"CID for '{object_name}' is: {cid}")
