@@ -382,7 +382,7 @@ async def create_trs_request(
     """
     if len(files) > 10:
         return JSONResponse(status_code=400, content={"message": "A maximum of 10 files can be uploaded."})
-    exist = await database_client.check_collection_exists()
+    exist = await database_client.check_collection_exists(title)
     pend_request = await database_client.get_trs_creation_requests('pending')
     confirmed_request = await database_client.get_trs_creation_requests('approved')
     all_request = pend_request + confirmed_request
