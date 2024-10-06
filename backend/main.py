@@ -140,6 +140,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
     access_token = create_auth_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
+    await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -181,6 +182,7 @@ async def signup(user: SignupRequest):
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_auth_token(data={"sub": user.email}, expires_delta=access_token_expires)
     logger.info(f"User created with email {user.email}")
+    await database_client.login_user(user.email)
     # Return token
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -324,6 +326,7 @@ async def google_callback(request: Request):
     access_token = create_auth_token(
         data={"sub": idinfo['email']}, expires_delta=access_token_expires
     )
+    await database_client.login_user(email=idinfo['email'])
     logging.info(f"Authenticated user {idinfo['email']} using Google OAuth2")
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -713,7 +716,6 @@ async def artisan_deactivate(collection_name: str, number: int, user: User = Dep
         for i in wallet['trs']: 
             if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 1:
                 req_wallet.append(i)
-
         if len(req_wallet) >= number:
             values = []
             for i in req_wallet[:number]:

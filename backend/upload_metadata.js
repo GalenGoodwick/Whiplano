@@ -3,6 +3,11 @@ import {
     mplTokenMetadata,
 } from "@metaplex-foundation/mpl-token-metadata";
 import {
+    updateV1,
+    fetchMetadataFromSeeds,
+} from "@metaplex-foundation/mpl-token-metadata";
+
+import {
     createGenericFile,
     generateSigner,
     percentAmount,
@@ -108,43 +113,6 @@ const createNft = async (name, ImagePath, MetadataPath) => {
         throw new Error(err);
     });
     const metadataUri = metadataUrl.replace(/arweave\.net/g, "devnet.irys.xyz");
-
-    //
-    // ** Creating the Nft **
-    //
-    console.log("hello");
-
-    const mint = generateSigner(umi);
-    console.log(signer.publicKey);
-    console.log(mint.publicKey);
-
-    await createV1(umi, {
-        mint: mint,
-        authority: signer,
-        name: name,
-        uri: metadataUri,
-        sellerFeeBasisPoints: percentAmount(1.0),
-        tokenStandard: TokenStandard.NonFungible,
-    }).sendAndConfirm(umi);
-    await mintV1(umi, {
-        mint: mint.publicKey,
-        authority: signer,
-        amount: 1,
-        tokenOwner: signer,
-        signer,
-        tokenStandard: TokenStandard.NonFungible,
-    }).sendAndConfirm(umi);
-
-    console.log(signer.publicKey);
-    console.log(mint.publicKey);
-
-    const asset = await fetchDigitalAsset(umi, mint.publicKey);
-    console.log("e", asset);
-    console.log(
-        JSON.stringify({
-            mintAddress: mint.publicKey,
-        }),
-    );
 };
 
 // Get command-line arguments

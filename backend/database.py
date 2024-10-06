@@ -4,6 +4,7 @@ import uuid
 from backend.logging_config import logging_config  # Import the configuration file
 import logging.config
 from fastapi import FastAPI, HTTPException
+from datetime import datetime
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("database")
 
@@ -39,6 +40,46 @@ class DatabaseManager:
             raise HTTPException(status_code=400, detail=str(e))
             self.connection = None
 
+            
+    async def login_user(self, user_id=None, email=None):
+        """
+        Updates the last login timestamp for a user in the database.
+
+        Parameters:
+        - user_id (int): The unique identifier of the user. If both user_id and email are provided, user_id will be used.
+        - email (str): The email address of the user. If both user_id and email are provided, user_id will be used.
+
+        Returns:
+        - None
+
+        Raises:
+        - None
+
+        """
+        if not self.connection:
+            logger.critical("No database connection")
+            return None
+        try:
+            if user_id is not None:
+                cursor = self.connection.cursor()
+                query = "UPDATE users set last_login = %s where user_id = %s"
+                cursor.execute(query, (datetime.now(), user_id))
+                self.connection.commit()
+                logger.info(f"Last login updated for user {user_id}")
+            else:
+                cursor = self.connection.cursor()
+                query = "UPDATE users set last_login = %s where email = %s"
+                cursor.execute(query, (datetime.now(), email))
+                self.connection.commit()
+                logger.info(f"Last login updated for user {email}")
+        except:
+            logger.error("Failed to update last_login for user. ")
+        finally:
+            cursor.close()
+            
+            
+
+                
     async def add_user(self, username, email, password_hash):
         """
         Adds a new user to the database.
@@ -876,7 +917,7 @@ class DatabaseManager:
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
-                query = "SELECT  collection_name, bid_price, COUNT(*) AS number_of_trs from  marketplace WHERE  order_type = 'buy' AND collection_name = %s GROUP BY collection_name,bid_price "
+                query = "SELECT  collection_name, bid_price, COUNT(*) AS number_of_trs from  marketplace WHERE collection_name = %s GROUP BY collection_name,bid_price "
 
                 cursor.execute(query, (collection_name,))
                 results = cursor.fetchall()
