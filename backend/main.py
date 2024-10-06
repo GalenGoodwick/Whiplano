@@ -387,7 +387,8 @@ async def create_trs_request(
     confirmed_request = await database_client.get_trs_creation_requests('approved')
     all_request = pend_request + confirmed_request
     for request in all_request: 
-        if request['name'] == title:
+        print(request)
+        if request[''] == title:
             raise HTTPException(status_code=409, content = "There is already a TRS creation request in this Title.")
     if exist: 
         raise HTTPException(status_code=409, content = "Collection already exists.")
