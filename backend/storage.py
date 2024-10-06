@@ -80,4 +80,4 @@ async def test():
         file_url = await upload_to_s3(upload_file, 'lol.png')
         print(f"File uploaded successfully: {file_url}")
         return file_url
-asyncio.run(test())
+#asyncio.run(test())
