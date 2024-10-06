@@ -1200,6 +1200,7 @@ class DatabaseManager:
                 cursor.execute(query,(id,))
                 logger.info(f"Approved TRS creation request {id}")
                 creation_data = await self.get_trs_creation_data(collection_name)
+                creation_data = creation_data[0]
                 await self.add_collection_data(creation_data['title'],creator_email,creation_data['description'],number,creation_data['file_url_header'])
                 creator_id = await self.get_user_by_email(creator_email)
                 creator_id = creator_id['user_id']
