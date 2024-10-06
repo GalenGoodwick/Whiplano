@@ -745,7 +745,6 @@ class DatabaseManager:
                 marketplace_trs = []
                 none_trs = []
                 for i in result: 
-                    logger.debug(i)
                     if i['creator'] == user_id:
                         created_trs.append(i)
                     if i['marketplace'] == 1:

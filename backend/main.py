@@ -356,7 +356,7 @@ async def create_trs_request(
     description : str = Form(...),
     files: List[UploadFile] = File(...),
     image: UploadFile = File(...),
-    
+    number:int == Form(...)
 ):
     """
     This function creates a TRS creation request by uploading files to a storage service,
@@ -367,7 +367,7 @@ async def create_trs_request(
     model_name (str): The name of the model used for creating the TRS.
     metadata (Metadata): The metadata associated with the TRS creation request.
     files (List[UploadFile]): The files associated with the TRS creation request.
-
+    number (int): The number of TRS to be minted. Currently only a placeholder. 
     Returns:
     JSONResponse: A JSON response indicating the success or failure of the TRS creation request.
         - status_code (int): The HTTP status code of the response.
