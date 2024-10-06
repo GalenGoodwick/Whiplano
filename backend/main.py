@@ -281,6 +281,10 @@ async def admin_creation_requests():
 
 @app.post("/admin/approve",dependencies = [Depends(get_current_user)],tags = ["Admin"],summary = "For approving TRS creation requests, and minting the TRS")
 async def admin_approve(id: int):
+    exist = await database_client.check_collection_exists()
+    if exist: 
+        raise HTTPException(status_code= 409, content = "Collection already exists.")
+    
     number = 1000
     trs_creation_data = await database_client.get_trs_creation_data(id)
     trs_creation_data = trs_creation_data[0]
@@ -378,7 +382,17 @@ async def create_trs_request(
     """
     if len(files) > 10:
         return JSONResponse(status_code=400, content={"message": "A maximum of 10 files can be uploaded."})
+    exist = await database_client.check_collection_exists()
+    pend_request = await database_client.get_trs_creation_requests('pending')
+    confirmed_request = await database_client.get_trs_creation_requests('approved')
+    all_request = pend_request + confirmed_request
+    for request in all_request: 
+        if request['name'] == title:
+            raise HTTPException(status_code=409, content = "There is already a TRS creation request in this Title.")
+    if exist: 
+        raise HTTPException(status_code=409, content = "Collection already exists.")
     try:
+        
         file_urls = []
         for file in files:
             file_url = await storage.upload_to_s3(file,f'trs_data/{title}/{file.filename}')

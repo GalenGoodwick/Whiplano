@@ -1093,6 +1093,31 @@ class DatabaseManager:
                 cursor.close()
                     
     
+    async def check_collection_exists(self,name):
+        if not self.connection:
+            logger.critical("No Database connection.")
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+                query = "SELECT  * from  collection_data where name = '%s'"
+
+                cursor.execute(query, (name,))
+                results = cursor.fetchall()
+                if len(results) == 0:
+                    logger.info(f"Collection {name} does not exist. ")
+                    return False
+                else:
+                    logger.info(f"Collection {name} does not exist. ")
+                    return True
+
+                
+               
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
     async def add_trs_creation_request(self,model_name,title,description,creator_email, file_url_header):
         """
     Submits a new TRS creation request to the database.
@@ -1195,7 +1220,7 @@ class DatabaseManager:
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)
-
+                q1 = "select * from trs_creation_requests where id = %s"
                 query = "UPDATE trs_creation_requests set status = 'approved' WHERE id = %s"
                 cursor.execute(query,(id,))
                 logger.info(f"Approved TRS creation request {id}")
@@ -1217,4 +1242,4 @@ class DatabaseManager:
                 cursor.close()
     
 
-    
+            
