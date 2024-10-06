@@ -1148,14 +1148,14 @@ class DatabaseManager:
             cursor.close()
     
     
-    async def get_trs_creation_data(self,title):
+    async def get_trs_creation_data(self,id):
         if not self.connection:
             logger.critical("No database connection")
             return None
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM trs_creation_requests WHERE id = %s"
-            cursor.execute(query, (title,))
+            cursor.execute(query, (id,))
             result = cursor.fetchall()
             return result
         except Error as e:
@@ -1199,7 +1199,8 @@ class DatabaseManager:
                 query = "UPDATE trs_creation_requests set status = 'approved' WHERE id = %s"
                 cursor.execute(query,(id,))
                 logger.info(f"Approved TRS creation request {id}")
-                creation_data = await self.get_trs_creation_data(collection_name)
+                creation_data = await self.get_trs_creation_data(id)
+                logger.info(creation_data)
                 creation_data = creation_data[0]
                 await self.add_collection_data(creation_data['title'],creator_email,creation_data['description'],number,creation_data['file_url_header'])
                 creator_id = await self.get_user_by_email(creator_email)
