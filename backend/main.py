@@ -288,7 +288,7 @@ async def admin_approve(id: int):
     trs_creation_data = trs_creation_data[0]
     exist = await database_client.check_collection_exists(trs_creation_data['title'])
     if exist: 
-        raise HTTPException(status_code= 409, content = "Collection already exists.")   
+        raise HTTPException(status_code= 409, detail = "Collection already exists.")   
     mint_address = await mint.mint(trs_creation_data['title'],trs_creation_data['description'],number,trs_creation_data['creator_email'])
     token_account_address = await transaction_module.get_token_account_address(Pubkey.from_string(mint_address))
     await database_client.approve_trs_creation_request(id,trs_creation_data['creator_email'],number,mint_address,trs_creation_data['title'],token_account_address)
