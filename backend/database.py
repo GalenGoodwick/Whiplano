@@ -1177,7 +1177,7 @@ class DatabaseManager:
                 image_uri = 'https://ipfs.filebase.io/ipfs/' + str(cid)
                 query = "INSERT INTO collection_data (name,creator, description, number, image_uri) VALUES (%s, %s, %s,%s,%s)"
                 
-                values = (user_id,name,creator,description,number,image_uri)
+                values = (name,creator,description,number,image_uri)
                 cursor.execute(query, values)
                 self.connection.commit()
                 logger.info(f"Collection data has been added for {name} . ")
