@@ -114,8 +114,6 @@ const createNft = async (name, ImagePath, MetadataPath) => {
     //
 
     const mint = generateSigner(umi);
-    console.log(signer.publicKey);
-    console.log(mint.publicKey);
 
     await createV1(umi, {
         mint: mint,
