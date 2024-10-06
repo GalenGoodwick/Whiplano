@@ -4,6 +4,8 @@ import uuid
 from backend.logging_config import logging_config  # Import the configuration file
 import logging.config
 from fastapi import FastAPI, HTTPException
+from datetime import datetime
+from backend import storage
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("database")
 
@@ -39,6 +41,46 @@ class DatabaseManager:
             raise HTTPException(status_code=400, detail=str(e))
             self.connection = None
 
+            
+    async def login_user(self, user_id=None, email=None):
+        """
+        Updates the last login timestamp for a user in the database.
+
+        Parameters:
+        - user_id (int): The unique identifier of the user. If both user_id and email are provided, user_id will be used.
+        - email (str): The email address of the user. If both user_id and email are provided, user_id will be used.
+
+        Returns:
+        - None
+
+        Raises:
+        - None
+
+        """
+        if not self.connection:
+            logger.critical("No database connection")
+            return None
+        try:
+            if user_id is not None:
+                cursor = self.connection.cursor()
+                query = "UPDATE users set last_login = %s where user_id = %s"
+                cursor.execute(query, (datetime.now(), user_id))
+                self.connection.commit()
+                logger.info(f"Last login updated for user {user_id}")
+            else:
+                cursor = self.connection.cursor()
+                query = "UPDATE users set last_login = %s where email = %s"
+                cursor.execute(query, (datetime.now(), email))
+                self.connection.commit()
+                logger.info(f"Last login updated for user {email}")
+        except:
+            logger.error("Failed to update last_login for user. ")
+        finally:
+            cursor.close()
+            
+            
+
+                
     async def add_user(self, username, email, password_hash):
         """
         Adds a new user to the database.
@@ -59,7 +101,6 @@ class DatabaseManager:
             logger.critical("No database connection")
             return
         try:
-            logger.info("trying for cursor")
             cursor = self.connection.cursor()
             user_id = str(uuid.uuid4())
             
@@ -498,7 +539,23 @@ class DatabaseManager:
             finally: 
                 cursor.close()
     
-    
+    async def get_collection_data(self,name):
+        if not self.connection:
+            logger.critical("No database connection")
+            return None
+        try:
+            cursor = self.connection.cursor(dictionary=True)
+            query = "SELECT * FROM collection_data WHERE name = %s"
+            cursor.execute(query, (name,))
+            result = cursor.fetchall()
+            return result
+        except Error as e:
+            
+            logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+            
+        finally:
+            cursor.close()
     async def get_approved_transactions(self,buyer_transaction_id):
         """
     Retrieves the approved transactions for a buyer from the database.
@@ -704,7 +761,6 @@ class DatabaseManager:
                 marketplace_trs = []
                 none_trs = []
                 for i in result: 
-                    logger.debug(i)
                     if i['creator'] == user_id:
                         created_trs.append(i)
                     if i['marketplace'] == 1:
@@ -842,7 +898,10 @@ class DatabaseManager:
 
                 cursor.execute(query)
                 results = cursor.fetchall()
-
+                for collection in results: 
+                    data = self.get_collection_data(collection['collection_name'])
+                    collection['collection_data'] = data
+                    
                 logger.info(f"Entire Marketplace fetched successfully. ")
                 return results
 
@@ -876,7 +935,7 @@ class DatabaseManager:
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
-                query = "SELECT  collection_name, bid_price, COUNT(*) AS number_of_trs from  marketplace WHERE  order_type = 'buy' AND collection_name = %s GROUP BY collection_name,bid_price "
+                query = "SELECT  collection_name, bid_price, COUNT(*) AS number_of_trs from  marketplace WHERE collection_name = %s GROUP BY collection_name,bid_price "
 
                 cursor.execute(query, (collection_name,))
                 results = cursor.fetchall()
@@ -1055,7 +1114,6 @@ class DatabaseManager:
             logger.critical("No database connection")
             return
         try:
-            logger.info("trying for cursor")
             cursor = self.connection.cursor()            
             query = "INSERT INTO trs_creation_requests (model_name, title, description, creator_email, file_url_header) VALUES (%s, %s, %s,%s,%s)"
             values = (model_name,title, description, creator_email, file_url_header)
@@ -1089,6 +1147,47 @@ class DatabaseManager:
         finally:
             cursor.close()
     
+    
+    async def get_trs_creation_data(self,id):
+        if not self.connection:
+            logger.critical("No database connection")
+            return None
+        try:
+            cursor = self.connection.cursor(dictionary=True)
+            query = "SELECT * FROM trs_creation_requests WHERE id = %s"
+            cursor.execute(query, (id,))
+            result = cursor.fetchall()
+            return result
+        except Error as e:
+            
+            logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+            
+        finally:
+            cursor.close()
+
+    async def add_collection_data(self,name,creator,description,number,url_header):
+        if not self.connection:
+            logger.critical("No Database connection.")
+        else:
+            try:
+                cursor = self.connection.cursor()
+                user_id = str(uuid.uuid4())
+                cid = storage.get_file_cid(f'{url_header}thumbnail.png')
+                image_uri = 'https://ipfs.filebase.io/ipfs/' + str(cid)
+                query = "INSERT INTO collection_data (name,creator, description, number, image_uri) VALUES (%s, %s, %s,%s,%s)"
+                
+                values = (name,creator,description,number,image_uri)
+                cursor.execute(query, values)
+                self.connection.commit()
+                logger.info(f"Collection data has been added for {name} . ")
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+            finally:
+                cursor.close()
+                
+        
     async def approve_trs_creation_request(self,id,creator_email,number,mint_address,collection_name,token_account_address):
 
         if not self.connection:
@@ -1100,6 +1199,10 @@ class DatabaseManager:
                 query = "UPDATE trs_creation_requests set status = 'approved' WHERE id = %s"
                 cursor.execute(query,(id,))
                 logger.info(f"Approved TRS creation request {id}")
+                creation_data = await self.get_trs_creation_data(id)
+                logger.info(creation_data)
+                creation_data = creation_data[0]
+                await self.add_collection_data(creation_data['title'],creator_email,creation_data['description'],number,creation_data['file_url_header'])
                 creator_id = await self.get_user_by_email(creator_email)
                 creator_id = creator_id['user_id']
                 await self.add_trs(number,mint_address,collection_name,token_account_address,creator_id)
@@ -1112,20 +1215,6 @@ class DatabaseManager:
 
             finally: 
                 cursor.close()
-    async def get_trs_creation_data(self,title):
-        if not self.connection:
-            logger.critical("No database connection")
-            return None
-        try:
-            cursor = self.connection.cursor(dictionary=True)
-            query = "SELECT * FROM trs_creation_requests WHERE id = %s"
-            cursor.execute(query, (title,))
-            result = cursor.fetchall()
-            return result
-        except Error as e:
-            
-            logger.error(f"Error: {e}")
-            raise HTTPException(status_code=400, detail=str(e))
-            
-        finally:
-            cursor.close()
+    
+
+    

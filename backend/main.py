@@ -140,6 +140,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
     access_token = create_auth_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
+    await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -181,6 +182,7 @@ async def signup(user: SignupRequest):
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_auth_token(data={"sub": user.email}, expires_delta=access_token_expires)
     logger.info(f"User created with email {user.email}")
+    await database_client.login_user(user.email)
     # Return token
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -324,6 +326,7 @@ async def google_callback(request: Request):
     access_token = create_auth_token(
         data={"sub": idinfo['email']}, expires_delta=access_token_expires
     )
+    await database_client.login_user(email=idinfo['email'])
     logging.info(f"Authenticated user {idinfo['email']} using Google OAuth2")
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -353,7 +356,7 @@ async def create_trs_request(
     description : str = Form(...),
     files: List[UploadFile] = File(...),
     image: UploadFile = File(...),
-    
+    number:int = Form(...)
 ):
     """
     This function creates a TRS creation request by uploading files to a storage service,
@@ -364,7 +367,7 @@ async def create_trs_request(
     model_name (str): The name of the model used for creating the TRS.
     metadata (Metadata): The metadata associated with the TRS creation request.
     files (List[UploadFile]): The files associated with the TRS creation request.
-
+    number (int): The number of TRS to be minted. Currently only a placeholder. 
     Returns:
     JSONResponse: A JSON response indicating the success or failure of the TRS creation request.
         - status_code (int): The HTTP status code of the response.
@@ -555,7 +558,8 @@ async def wallet_get(user: User = Depends(get_current_user)):
                 elif trs['creator'] == user.id:
                     final_wallet[trs['collection_name']]['created'] = True
             else:
-                final_wallet[trs['collection_name']] = {'number': 1, 'created': False, 'artisan': 0,'marketplace': 0,'data':"Collection data, will be added later. Gonna be images, descriptions, creator, etc. "}
+                collection_data = await database_client.get_collection_data(trs['collection_name'])
+                final_wallet[trs['collection_name']] = {'number': 1, 'created': False, 'artisan': 0,'marketplace': 0,'data':collection_data}
                 if trs['artisan'] == 1:
                     final_wallet[trs['collection_name']]['artisan'] +=1
                 elif trs['marketplace'] == 1:
@@ -598,6 +602,7 @@ async def marketplace_collection(collection_name: str):
     """
     try:
         trs_on_marketplace = await database_client.get_marketplace_collection(collection_name)
+        
         return trs_on_marketplace
     except Exception as e:
         logger.error(f"Error fetching marketplace for collection {collection_name}: {e}")
@@ -713,7 +718,6 @@ async def artisan_deactivate(collection_name: str, number: int, user: User = Dep
         for i in wallet['trs']: 
             if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 1:
                 req_wallet.append(i)
-
         if len(req_wallet) >= number:
             values = []
             for i in req_wallet[:number]:

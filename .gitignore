@@ -5,7 +5,7 @@ central_wallet.json
 *temp.py
 venv
 .venv
-
+sql.sh
 # Added by cargo
 
 /target
