@@ -388,9 +388,9 @@ async def create_trs_request(
     all_request = pend_request + confirmed_request
     for request in all_request: 
         if request['title'] == title:
-            raise HTTPException(status_code=409, content = "There is already a TRS creation request in this Title.")
+            raise HTTPException(status_code=409, detail = "There is already a TRS creation request in this Title.")
     if exist: 
-        raise HTTPException(status_code=409, content = "Collection already exists.")
+        raise HTTPException(status_code=409, detail = "Collection already exists.")
     try:
         
         file_urls = []
@@ -404,7 +404,7 @@ async def create_trs_request(
 
         return JSONResponse(status_code= 200, content = {"message":"Trs creation request submitted succesfully. "})
     except Exception as e:
-        return HTTPException(status_code = 500, content = str(e))
+        return HTTPException(status_code = 500, detail = str(e))
 
 @app.post('/trade/create',dependencies=[Depends(get_current_user)],tags=['Transactions'],summary="Creates a trade.",description="Creates a trade, adds it to the pending trades database, creates a paypal transaction")
 async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
