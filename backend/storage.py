@@ -11,9 +11,9 @@ import os
 from dotenv import load_dotenv
 import asyncio
 import io 
-from backend.logging_config import logging_config  # Import the configuration file
+#from backend.logging_config import logging_config  # Import the configuration file
 import logging.config
-logging.config.dictConfig(logging_config)
+#logging.config.dictConfig(logging_config)
 logger = logging.getLogger("storage")
 
 load_dotenv()
@@ -48,7 +48,6 @@ async def upload_to_s3(file: UploadFile, object_name: str):
     try:
         # Upload the file object to S3 bucket
         s3.Bucket(BUCKET_NAME).upload_fileobj(file.file, object_name)
-
         # Generate the file URL after uploading
         file_url = f"{ENDPOINT_URL}/{BUCKET_NAME}/{object_name}"
 
@@ -72,4 +71,13 @@ def download_file(object_name, download_path):
     
     except Exception as e:
         logger.info(f"Error downloading file: {e}")
-        
+
+async def test():
+    with open('./collections/assets/3.png', 'rb') as file:
+        # Create a fake UploadFile object
+        upload_file = UploadFile(filename='lol.png', file=file)
+        # Call the upload function
+        file_url = await upload_to_s3(upload_file, 'lol.png')
+        print(f"File uploaded successfully: {file_url}")
+        return file_url
+asyncio.run(test())

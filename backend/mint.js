@@ -112,7 +112,6 @@ const createNft = async (name, ImagePath, MetadataPath) => {
     //
     // ** Creating the Nft **
     //
-    console.log("hello");
 
     const mint = generateSigner(umi);
     console.log(signer.publicKey);
@@ -135,11 +134,7 @@ const createNft = async (name, ImagePath, MetadataPath) => {
         tokenStandard: TokenStandard.NonFungible,
     }).sendAndConfirm(umi);
 
-    console.log(signer.publicKey);
-    console.log(mint.publicKey);
-
     const asset = await fetchDigitalAsset(umi, mint.publicKey);
-    console.log("e", asset);
     console.log(
         JSON.stringify({
             mintAddress: mint.publicKey,

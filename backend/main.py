@@ -601,6 +601,7 @@ async def marketplace_collection(collection_name: str):
     """
     try:
         trs_on_marketplace = await database_client.get_marketplace_collection(collection_name)
+        
         return trs_on_marketplace
     except Exception as e:
         logger.error(f"Error fetching marketplace for collection {collection_name}: {e}")
