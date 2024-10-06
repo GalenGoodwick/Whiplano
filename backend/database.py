@@ -1099,7 +1099,7 @@ class DatabaseManager:
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)
-                query = "SELECT  * from  collection_data where name = '%s'"
+                query = "SELECT  * from  collection_data where name = %s"
 
                 cursor.execute(query, (name,))
                 results = cursor.fetchall()
