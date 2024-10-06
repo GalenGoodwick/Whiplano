@@ -356,7 +356,7 @@ async def create_trs_request(
     description : str = Form(...),
     files: List[UploadFile] = File(...),
     image: UploadFile = File(...),
-    number:int == Form(...)
+    number:int = Form(...)
 ):
     """
     This function creates a TRS creation request by uploading files to a storage service,
@@ -558,7 +558,8 @@ async def wallet_get(user: User = Depends(get_current_user)):
                 elif trs['creator'] == user.id:
                     final_wallet[trs['collection_name']]['created'] = True
             else:
-                final_wallet[trs['collection_name']] = {'number': 1, 'created': False, 'artisan': 0,'marketplace': 0,'data':"Collection data, will be added later. Gonna be images, descriptions, creator, etc. "}
+                collection_data = await database_client.get_collection_data(trs['collection_name'])
+                final_wallet[trs['collection_name']] = {'number': 1, 'created': False, 'artisan': 0,'marketplace': 0,'data':collection_data}
                 if trs['artisan'] == 1:
                     final_wallet[trs['collection_name']]['artisan'] +=1
                 elif trs['marketplace'] == 1:

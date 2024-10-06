@@ -32,6 +32,13 @@ s3 = boto3.resource(
     endpoint_url=ENDPOINT_URL,
     config=Config(signature_version='s3v4')
 )
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=FILEBASE_ACCESS_KEY,
+    aws_secret_access_key=FILEBASE_SECRET_KEY,
+    endpoint_url=ENDPOINT_URL,
+    config=Config(signature_version='s3v4')
+)
 
 def upload_file(file_path, object_name=None):
     """Upload a file to Filebase S3 bucket."""
@@ -78,6 +85,27 @@ async def test():
         upload_file = UploadFile(filename='lol.png', file=file)
         # Call the upload function
         file_url = await upload_to_s3(upload_file, 'lol.png')
-        print(f"File uploaded successfully: {file_url}")
+        logger.info(f"File uploaded successfully: {file_url}")
         return file_url
 #asyncio.run(test())
+
+
+def get_file_cid( object_name):
+    try:
+        # Retrieve object metadata
+        response = s3_client.head_object(Bucket=BUCKET_NAME, Key=object_name)
+        
+        # Extract the CID from metadata
+        metadata = response.get('Metadata', {})
+        metadata = metadata.json()
+        cid = metadata['json']
+        
+        if cid:
+            logger.info(f"CID for '{object_name}' is: {cid}")
+            return cid
+        else:
+            logger.info(f"No CID found in metadata for '{object_name}'.")
+            return None
+    except Exception as e:
+        print(f"Error retrieving CID: {e}")
+        return None
