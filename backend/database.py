@@ -1114,7 +1114,6 @@ class DatabaseManager:
             logger.critical("No database connection")
             return
         try:
-            logger.info("trying for cursor")
             cursor = self.connection.cursor()            
             query = "INSERT INTO trs_creation_requests (model_name, title, description, creator_email, file_url_header) VALUES (%s, %s, %s,%s,%s)"
             values = (model_name,title, description, creator_email, file_url_header)
@@ -1172,7 +1171,6 @@ class DatabaseManager:
             logger.critical("No Database connection.")
         else:
             try:
-                logger.info("trying for cursor")
                 cursor = self.connection.cursor()
                 user_id = str(uuid.uuid4())
                 cid = storage.get_file_cid(f'{url_header}thumbnail.png')
@@ -1201,7 +1199,7 @@ class DatabaseManager:
                 query = "UPDATE trs_creation_requests set status = 'approved' WHERE id = %s"
                 cursor.execute(query,(id,))
                 logger.info(f"Approved TRS creation request {id}")
-                creation_data = self.get_trs_creation_data(collection_name)
+                creation_data = await self.get_trs_creation_data(collection_name)
                 await self.add_collection_data(creation_data['title'],creator_email,creation_data['description'],number,creation_data['file_url_header'])
                 creator_id = await self.get_user_by_email(creator_email)
                 creator_id = creator_id['user_id']
