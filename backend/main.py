@@ -38,7 +38,7 @@ app = FastAPI(
     }
 )
 whiplano_id = '0000-0000-0000'
-database_client = DatabaseManager(
+database_client = database.DatabaseManager(
     host=os.getenv("DATABASE_HOST"),
     user=os.getenv("DATABASE_USERNAME"),
     password=os.getenv("DATABASE_PASSWORD"),
