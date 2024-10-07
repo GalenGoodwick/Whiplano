@@ -81,7 +81,6 @@ class MintTrsData(BaseModel):
    
 class TradeCreateData(BaseModel):
     collection_name : str = Field(..., description = "Name of the collection to be bought")
-    seller_id : list = Field(..., description = "ID of the seller")
     number : int = Field(..., description = "Number of TRSs to be traded") 
     cost : float = Field(..., description = "Cost of one TRS")
 
@@ -412,7 +411,9 @@ async def create_trs_request(
 async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
     wallets = {}
     for i in data.seller_id:
-        wallets[i] = await database_client.get_wallet_by_collection(i,data.collection_name)
+        wallets[i] = await database_client.get_wallet_formatted(buyer.id)
+    req_trs = {}
+    
     trs_count = 0
     for i in wallets:
         trs_count += len(wallets[i])
@@ -430,13 +431,9 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
             "return_url": SERVER_URL + "/trade/execute_payment"   
         }
         try:
-            logger.debug("debug 1")
             resp = await paypal.create_payment(data_transac)
-            logger.debug("debug 1")
             await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id,(data.number)*(data.cost))
-            logger.debug("debug 1")
             logger.info(f"Payment created succesfully with id {resp['id']}")
-            logger.debug("debug 1")
             buyer_transaction_number = resp['id']
             required_transactions = {}
             required_number = data.number
@@ -649,7 +646,7 @@ async def marketplace_add(collection_name: str, number: int,price:int, user: Use
         req_wallet = []
         
         for i in wallet['trs']: 
-            logger.debug(i)
+            
             if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
                 req_wallet.append(i)
 
@@ -657,7 +654,7 @@ async def marketplace_add(collection_name: str, number: int,price:int, user: Use
             values = []
             values2 = []
             for i in req_wallet[:number]:
-                price = 1000
+        
                 values.append((i['trs_id'],collection_name, user.id,price))
                 values2.append((i['trs_id'],))
             await database_client.add_trs_to_marketplace(user.id,values,values2,i['collection_name'])

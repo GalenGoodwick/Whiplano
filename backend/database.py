@@ -659,10 +659,10 @@ class DatabaseManager:
             result = cursor.fetchall()
             return result
         except Error as e:
-            
+
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
-            
+
         finally:
             cursor.close()
     async def get_approved_transactions(self,buyer_transaction_id):
@@ -957,7 +957,7 @@ class DatabaseManager:
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)
-                query = "INSERT INTO marketplace (trs_id,collection_name,order_type,buyer_seller_id,bid_price) VALUES (%s,%s,%s,%s,%s)"
+                query = "INSERT INTO marketplace (trs_id,collection_name,sell,buyer_seller_id,bid_price) VALUES (%s,%s,sell,%s,%s)"
 
                 cursor.executemany(query, values)
                 self.connection.commit()
@@ -1449,5 +1449,23 @@ class DatabaseManager:
             finally: 
                 cursor.close()
     
+    async def trade_create(self):
+        if not self.connection:
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+                
+                self.connection.commit()
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
 
+            finally: 
+                cursor.close()
             
