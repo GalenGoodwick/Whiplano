@@ -6,6 +6,10 @@ import logging.config
 from fastapi import FastAPI, HTTPException
 from datetime import datetime
 from backend import storage
+import os 
+import dotenv
+import time
+dotenv.load_dotenv()
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("database")
 
@@ -40,8 +44,44 @@ class DatabaseManager:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
             self.connection = None
+    async def conn(self):
+        """
+        Attempts to reconnect to the database. 
 
+        Returns:
+        - None
+
+        Raises:
+        - HTTPException: If there is an error connecting to the MySQL database.
+        """
+        try:
+            self.connection = mysql.connector.connect(
+                host=os.getenv("DATABASE_HOST"),
+                user=os.getenv("DATABASE_USERNAME"),
+                password=os.getenv("DATABASE_PASSWORD"),
+                database =os.getenv("DATABASE_NAME")
+            )
+            if self.connection.is_connected():
+                logger.info("Successfully connected to the database")
+                return True
+
+        except Error as e:
+            logger.error(f"Error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+        return False
+    async def attempt_connection(self):
+        connection = False
+        for i in range(5):
+            connection = await self.conn()
+            if connection: 
+                
+                return True
+            else:
+                logger.error("Connection failed, trying again in 3.")
+                time.sleep(3)
+        return connection
             
+
     async def login_user(self, user_id=None, email=None):
         """
         Updates the last login timestamp for a user in the database.
@@ -59,7 +99,11 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
-            return None
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             if user_id is not None:
                 cursor = self.connection.cursor()
@@ -99,7 +143,12 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
-            return
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
+            
         try:
             cursor = self.connection.cursor()
             user_id = str(uuid.uuid4())
@@ -131,7 +180,11 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
-            return None
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM users WHERE user_id = %s"
@@ -159,8 +212,12 @@ class DatabaseManager:
                  If the user does not exist or there is an error, returns None.
         """
         if not self.connection:
-            logger.critical("No Database Connection")
-            return
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM users WHERE email = %s"
@@ -199,7 +256,11 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
-            return
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor()
             updates = []
@@ -245,7 +306,11 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
-            return
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor()
             query = "DELETE FROM users WHERE user_id = %s"
@@ -276,7 +341,11 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
-            return
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor()
             query = f"INSERT INTO trs (user_id,trs_id,collection_name,creator) VALUES (%s, %s,%s,%s)"
@@ -305,7 +374,11 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
-            return None
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT user_id FROM trs WHERE trs_id = %s"
@@ -337,7 +410,12 @@ class DatabaseManager:
         - None
         """
         if not self.connection:
-            logger.critical('No Database Connection')
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor()
             transaction_number = str(uuid.uuid4())
@@ -366,7 +444,12 @@ class DatabaseManager:
     - HTTPException: If there is an error updating the transaction record.
         """
         if not self.connection:
-            logger.critical('No Database Connection')
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor()
             query = f"UPDATE transactions set status = %s  where transaction_number = %s "
@@ -394,6 +477,11 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor()
             query = f"UPDATE trs SET user_id = %s WHERE trs_id = %s"
@@ -441,7 +529,11 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
-            return
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor()
             batch_values = []
@@ -479,7 +571,11 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
-            return
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor()
             query = f"INSERT INTO paypal_transactions (transaction_id, buyer_id, seller_id, amount) VALUES (%s,%s,%s,%s)"
@@ -494,7 +590,11 @@ class DatabaseManager:
     async def modify_paypal_transaction(self,transaction_id,status):
         if not self.connection:
             logger.critical("No database connection")
-            return
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try: 
             cursor = self.connection.cursor()
             query = f"UPDATE paypal_transactions SET status = %s WHERE transaction_id = %s"
@@ -520,7 +620,12 @@ class DatabaseManager:
                  If the user does not exist or there is an error, returns None.
         """
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         elif not await self.get_user(user_id):
             logger.info(f"User not found {user_id}")
             return None
@@ -542,7 +647,11 @@ class DatabaseManager:
     async def get_collection_data(self,name):
         if not self.connection:
             logger.critical("No database connection")
-            return None
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM collection_data WHERE name = %s"
@@ -570,8 +679,12 @@ class DatabaseManager:
     HTTPException: If there is an error connecting to the database or retrieving the transactions.
     """
         if not self.connection:
-            logger.critical("No Database connection.")
-            return None
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM transactions WHERE buyer_id = %s AND status = %s"
@@ -602,8 +715,12 @@ class DatabaseManager:
     HTTPException: If there is an error connecting to the database or retrieving the transactions.
     """
         if not self.connection:
-            logger.critical("No Database connection.")
-            return None
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "UPDATE transacations SET status = 'approved' where buyer_id = %s AND status = 'initiated'"
@@ -635,8 +752,12 @@ class DatabaseManager:
     HTTPException: If there is an error connecting to the database or finishing the transactions.
     """
         if not self.connection:
-            logger.critical("No Database connection.")
-            return None
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "UPDATE transacations SET status = 'finished' where buyer_id = %s AND status = 'initiated'"
@@ -654,7 +775,12 @@ class DatabaseManager:
     
     async def get_wallet_by_collection(self,user_id,collection_id):
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         elif not await self.get_user(user_id):
             logger.error(f"User not found {user_id}")
             return None
@@ -675,7 +801,12 @@ class DatabaseManager:
        
     async def get_mint_address(self,collection_name):
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
@@ -708,7 +839,12 @@ class DatabaseManager:
     HTTPException: If there is an error connecting to the database or retrieving the creator id.
         """
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
@@ -745,7 +881,12 @@ class DatabaseManager:
     HTTPException: If there is an error connecting to the database or retrieving the user's wallet.
         """
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         elif not await self.get_user(user_id):
             logger.info(f"User not found {user_id}")
             return None
@@ -804,7 +945,12 @@ class DatabaseManager:
     HTTPException: If there is an error adding the token to the marketplace.
         """
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         elif not await self.get_user(user_id):
             logger.info(f"User not found {user_id}")
             return None
@@ -848,7 +994,12 @@ class DatabaseManager:
     HTTPException: If there is an error adding the token to the marketplace.
         """
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         elif not await self.get_user(user_id):
             logger.info(f"User not found {user_id}")
             return None
@@ -890,7 +1041,12 @@ class DatabaseManager:
         HTTPException: If there is an error connecting to the database or retrieving the tokens from the marketplace.
         """
         if not self.connection:
-            logger.critical("No database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
@@ -931,7 +1087,12 @@ class DatabaseManager:
         HTTPException: If there is an error connecting to the database or retrieving the tokens from the marketplace.
         """
         if not self.connection:
-            logger.critical("No database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
@@ -965,7 +1126,12 @@ class DatabaseManager:
         HTTPException: If there is an error connecting to the database or adding the user to the admin list.
         """
         if not self.connection:
-            logger.critical("No database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
@@ -997,7 +1163,12 @@ class DatabaseManager:
         HTTPException: If there is an error connecting to the database or adding the user to the admin list.
         """
         if not self.connection:
-            logger.critical("No database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         else:
             try:
                 cursor = self.connection.cursor(dictionary=True)
@@ -1032,7 +1203,12 @@ class DatabaseManager:
     HTTPException: If there is an error connecting to the database or activating the artisan rights.
     """
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         elif not await self.get_user(user_id):
             logger.info(f"User not found {user_id}")
             return None
@@ -1070,7 +1246,12 @@ class DatabaseManager:
     HTTPException: If there is an error connecting to the database or deactivating the artisan rights.
     """
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         elif not await self.get_user(user_id):
             logger.info(f"User not found {user_id}")
             return None
@@ -1095,7 +1276,12 @@ class DatabaseManager:
     
     async def check_collection_exists(self,name):
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)
@@ -1137,7 +1323,11 @@ class DatabaseManager:
         """
         if not self.connection:
             logger.critical("No database connection")
-            return
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor()            
             query = "INSERT INTO trs_creation_requests (model_name, title, description, creator_email, file_url_header) VALUES (%s, %s, %s,%s,%s)"
@@ -1157,7 +1347,11 @@ class DatabaseManager:
         
         if not self.connection:
             logger.critical("No database connection")
-            return None
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM trs_creation_requests WHERE status = %s"
@@ -1176,7 +1370,11 @@ class DatabaseManager:
     async def get_trs_creation_data(self,id):
         if not self.connection:
             logger.critical("No database connection")
-            return None
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM trs_creation_requests WHERE id = %s"
@@ -1193,7 +1391,12 @@ class DatabaseManager:
 
     async def add_collection_data(self,name,creator,description,number,url_header):
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         else:
             try:
                 cursor = self.connection.cursor()
@@ -1216,7 +1419,12 @@ class DatabaseManager:
     async def approve_trs_creation_request(self,id,creator_email,number,mint_address,collection_name,token_account_address):
 
         if not self.connection:
-            logger.critical("No Database connection.")
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)

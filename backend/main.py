@@ -39,12 +39,7 @@ app = FastAPI(
 )
 whiplano_id = '0000-0000-0000'
 
-database_client = database.DatabaseManager(
-    host=os.getenv("DATABASE_HOST"),
-    user=os.getenv("DATABASE_USERNAME"),
-    password=os.getenv("DATABASE_PASSWORD"),
-    database =os.getenv("DATABASE_NAME")
-)
+
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 REDIRECT_URI = SERVER_URL + "/callback/google"
