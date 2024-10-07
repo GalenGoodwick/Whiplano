@@ -421,6 +421,7 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
         raise HTTPException(status_code=400, detail="Insufficient funds")
     
     else:
+        print("1")
         description = f"Buy order for {data.number} TRS of {data.collection_name}. Price per TRS = {data.number}, Total Amount = {(data.number*data.cost)}"
         data_transac = {
             'collection_name':(data.number)*(data.cost),
@@ -429,9 +430,13 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
             "return_url": SERVER_URL + "/trade/execute_payment"   
         }
         try:
+            logger.debug("debug 1")
             resp = await paypal.create_payment(data_transac)
-            await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id)
+            logger.debug("debug 1")
+            await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id,(data.number)*(data.cost))
+            logger.debug("debug 1")
             logger.info(f"Payment created succesfully with id {resp['id']}")
+            logger.debug("debug 1")
             buyer_transaction_number = resp['id']
             required_transactions = {}
             required_number = data.number
@@ -451,9 +456,9 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
                     'approval_url': resp['links'][1]['href']}
             
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=501, detail=str(e))
         
-        return
+        
 
 
 @app.get('/trade/execute_payment',tags =['Transactions'],summary='Executes the trade.',description='Executes the buyer transaction, sends payouts, transafers assets, and Finalizes the trade.')
