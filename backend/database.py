@@ -957,7 +957,7 @@ class DatabaseManager:
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)
-                query = "INSERT INTO marketplace (trs_id,collection_name,order_type,buyer_seller_id,bid_price) VALUES (%s,%s,'sell',%s,%s)"
+                query = "INSERT INTO marketplace (trs_id,collection_name,order_type,buyer_seller_id,bid_price) VALUES (%s,%s,%s,%s,%s)"
 
                 cursor.executemany(query, values)
                 self.connection.commit()
@@ -1463,7 +1463,7 @@ class DatabaseManager:
                 INSERT INTO trades (buyer_id, seller_id, trs_id, status)
                 VALUES (%s, %s, %s, %s);
                 """
-                cursor.executemany(query, trades)
+                cursor.executemany(query)
                 print(f"{cursor.rowcount} trades added successfully.")
                 self.connection.commit()
             except Error as e:
