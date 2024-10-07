@@ -655,7 +655,7 @@ async def marketplace_add(collection_name: str, number: int,price:int, user: Use
             values2 = []
             for i in req_wallet[:number]:
         
-                values.append((i['trs_id'],collection_name, user.id,price))
+                values.append((i['trs_id'],collection_name,'sell', user.id,price))
                 values2.append((i['trs_id'],))
             await database_client.add_trs_to_marketplace(user.id,values,values2,i['collection_name'])
 
