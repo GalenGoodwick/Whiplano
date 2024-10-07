@@ -1055,7 +1055,7 @@ class DatabaseManager:
                 cursor.execute(query)
                 results = cursor.fetchall()
                 for collection in results: 
-                    data = self.get_collection_data(collection['collection_name'])
+                    data = await self.get_collection_data(collection['collection_name'])
                     collection['collection_data'] = data
                     
                 logger.info(f"Entire Marketplace fetched successfully. ")
