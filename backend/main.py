@@ -38,6 +38,12 @@ app = FastAPI(
     }
 )
 whiplano_id = '0000-0000-0000'
+database_client = DatabaseManager(
+    host=os.getenv("DATABASE_HOST"),
+    user=os.getenv("DATABASE_USERNAME"),
+    password=os.getenv("DATABASE_PASSWORD"),
+    database =os.getenv("DATABASE_NAME")
+)
 
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
