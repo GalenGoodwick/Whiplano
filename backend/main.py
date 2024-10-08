@@ -415,7 +415,7 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
     for i in mrktplace_collection:
         if i['collection_name'] == data.collection_name and i['bid_price']  == data.cost:
             number_of_trs = i['number_of_trs']
-    if len(number_of_trs) < data.number:
+    if number_of_trs < data.number:
         logger.info("Not enough TRS being offered by the sellers at the given price. ")
         raise HTTPException(status_code=400, detail="Not enough TRS being offered by the sellers at the given price. ")
     else: 
@@ -432,7 +432,7 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
                 await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id,(data.number)*(data.cost))
                 logger.info(f"Payment created succesfully with id {resp['id']}")
                 trade_create_data = await database_client.trade_create(resp['id'], data.cost,data.number,data.collection_name,buyer.id)
-                
+
                         
 
                 return {"message": "Payment created successful.",
