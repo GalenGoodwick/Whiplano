@@ -14,7 +14,7 @@ import os
 import requests
 import logging
 import uuid
-
+from decimal import Decimal
 import shutil
 
 from . import mint 
@@ -490,10 +490,13 @@ async def execute_payment(
         seller_data = await database_client.execute_trade(paymentId)
         logger.info(f"Trade executed with id {paymentId}")
         for seller in seller_data:
+            amount = Decimal(seller['cost']) * Decimal(seller['number'])
+            amount1 = amount * (Decimal(100-ROYALTY+FEES)/Decimal(100))
+            amount2 = amount * (Decimal(ROYALTY)/Decimal(100))
             payout_info = {
                     "batch_id":batch_id,
                     "recipient_email":seller['seller_email'],
-                    "amount":(seller['cost']*seller['number']) * ( 100 - ROYALTY + FEES) / 100,
+                    "amount":str(amount1),
                     "currency":"USD",
                     "note": f"Payment to {seller['seller_email']} for TRS of collection {seller['collection_name']}. "
                 }
@@ -502,7 +505,7 @@ async def execute_payment(
             royalty_payout_info = payout_info = {
                     "batch_id":batch_id,
                     "recipient_email":seller['seller_email'],
-                    "amount":(seller['cost']*seller['number']) * (ROYALTY) / 100,
+                    "amount":str(amount2),
                     "currency":"USD",
                     "note": f"Royalty for {seller['creator_email']} for trade of TRS of collection {seller['collection_name']}. "
                 }
