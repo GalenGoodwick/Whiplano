@@ -429,7 +429,9 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
             }
             try:
                 resp = await paypal.create_payment(data_transac)
-                await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id,(data.number)*(data.cost))
+                logger.debug("1")
+                amount = data.number*data.cost
+                await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id,amount)
                 logger.info(f"Payment created succesfully with id {resp['id']}")
                 trade_create_data = await database_client.trade_create(resp['id'], data.cost,data.number,data.collection_name,buyer.id)
 
