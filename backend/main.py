@@ -509,6 +509,7 @@ async def execute_payment(
                     "currency":"USD",
                     "note": f"Royalty for {seller['creator_email']} for trade of TRS of collection {seller['collection_name']}. "
                 }
+            
             data = {
                 "transaction_number":paymentId,
                 "buyer_id": seller['buyer_id'],
@@ -517,7 +518,7 @@ async def execute_payment(
                 "buyer_email":seller['buyer_email'],
                 "trs_count": seller['number']
             }
-            await transaction_module.transaction(data)
+            #await transaction_module.transaction(data)
             logger.info(f"Sent transaction to complete trade {paymentId}")
 
         logger.info(f"Completed Trade with buyer transaction number {paymentId}")
