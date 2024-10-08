@@ -1509,9 +1509,9 @@ class DatabaseManager:
                         sellers[seller_id] = 0
                     sellers[seller_id] += 1
 
-                transaction_insert_query = """
-                INSERT INTO transactions (transaction_number, collection_name, buyer_id, seller_id, cost, number, status) 
-                VALUES (%s, %s, %s, %s, %s, %s, 'initiated')
+                transaction_insert_query = f"""
+                INSERT INTO transactions (transaction_number, collection_name, buyer_id, seller_id, cost, number, status,buyer_transaction_id) 
+                VALUES (%s, %s, %s, %s, %s, %s, 'initiated',{trade_id})
                 """
                 transaction_values = [
                     (str(uuid.uuid4()), collection_name, buyer_id, seller_id, cost, sellers[seller_id])
@@ -1568,7 +1568,6 @@ class DatabaseManager:
                 """
                 cursor.execute(fetch_transactions_query, (trade_id,))
                 transactions = cursor.fetchall()
-                logger.debug(transactions)
                 buyer_id = transactions[0]['buyer_id']
                 buyer_user = await self.get_user(buyer_id)
                 
