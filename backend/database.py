@@ -1511,7 +1511,7 @@ class DatabaseManager:
 
                 transaction_insert_query = f"""
                 INSERT INTO transactions (transaction_number, collection_name, buyer_id, seller_id, cost, number, status,buyer_transaction_id) 
-                VALUES (%s, %s, %s, %s, %s, %s, 'initiated',"{trade_id}")
+                VALUES (%s, %s, %s, %s, %s, %s, 'initiated',{trade_id})
                 """
                 transaction_values = [
                     (str(uuid.uuid4()), collection_name, buyer_id, seller_id, cost, sellers[seller_id])
@@ -1616,7 +1616,7 @@ class DatabaseManager:
                 for transaction in transactions:
                     seller_user = await self.get_user(transaction['seller_id'])
                     collection_data = await self.get_collection_data(transaction['collection_name'])
-                    
+                    collection_data = collection_data[0]
                     response_list.append({
                         'seller_id': transaction['seller_id'],
                         'seller_email':seller_user['email'],
