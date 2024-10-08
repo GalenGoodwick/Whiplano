@@ -1492,14 +1492,14 @@ class DatabaseManager:
                 WHERE trs_id IN (%s)
                 """ % ','.join(['%s'] * number)
                 cursor.execute(update_trs_query, [trs['trs_id'] for trs in selected_trs])
-
+                logger.info("Updated trs status to in_trade")
                 trade_insert_query = """
                 INSERT INTO trades (trade_id, buyer_id, seller_id, trs_id, status) 
                 VALUES (%s, %s, %s, %s, 'initiated')
                 """
                 trade_values = [(trade_id, buyer_id, trs['user_id'], trs['trs_id']) for trs in selected_trs]
                 cursor.executemany(trade_insert_query, trade_values)
-
+                logger.info(f"Added trades for {collection_name}")
 
                 # Step 5: Insert into transactions table for each seller
                 sellers = {}
@@ -1518,11 +1518,11 @@ class DatabaseManager:
                     for seller_id in sellers
                 ]
                 cursor.executemany(transaction_insert_query, transaction_values)
-
+                
                 # Commit changes to the database
                 self.connection.commit()
                 logger.info(f"Transaction for collection {collection_name} and buyer {buyer_id} processed successfully.")
-                
+
                 self.connection.commit()
             except Error as e:
                 logger.error(f"Error: {e}")
@@ -1530,5 +1530,108 @@ class DatabaseManager:
 
             finally: 
                 cursor.close()
+
+    async def execute_trade(self, trade_id):
+        if not self.connection:
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+                        
+                # Step 1: Fetch all trs for the given trade_id and store trs_ids
+                fetch_trs_query = """
+                SELECT trs_id 
+                FROM trades 
+                WHERE trade_id = %s
+                """
+                cursor.execute(fetch_trs_query, (trade_id,))
+                trs_ids = [trs['trs_id'] for trs in cursor.fetchall()]
+
+                # Step 2: Update trades status to 'finished'
+                update_trades_query = """
+                UPDATE trades 
+                SET status = 'finished' 
+                WHERE trade_id = %s
+                """
+                cursor.execute(update_trades_query, (trade_id,))
+
+                # Step 3: Fetch all transactions corresponding to this trade and change status to 'approved'
+                fetch_transactions_query = """
+                SELECT transaction_number, buyer_id, seller_id, number, cost, collection_name 
+                FROM transactions 
+                WHERE transaction_number = %s
+                """
+                cursor.execute(fetch_transactions_query, (trade_id,))
+                transactions = cursor.fetchall()
+                buyer_id = transactions[0]['buyer_id']
+                buyer_user = await self.get_user(buyer_id)
                 
+                update_transactions_status_query = """
+                UPDATE transactions 
+                SET status = 'approved' 
+                WHERE transaction_number IN (%s)
+                """ % ','.join(['%s'] * len(transactions))
+                transaction_ids = [transaction['transaction_number'] for transaction in transactions]
+                cursor.execute(update_transactions_status_query, transaction_ids)
+
+                # Step 4: Change ownership of the trs (trs_id) to buyer_id from seller_id
+                update_ownership_query = """
+                UPDATE trs 
+                SET user_id = %s 
+                WHERE trs_id = %s AND user_id = %s
+                """
+                ownership_updates = [(transaction['buyer_id'], trs_id, transaction['seller_id']) 
+                                    for trs_id in trs_ids for transaction in transactions]
+                cursor.executemany(update_ownership_query, ownership_updates)
+                
+                # Step 5: Change transaction status to 'finished'
+                update_transactions_finished_query = """
+                UPDATE transactions 
+                SET status = 'finished' 
+                WHERE transaction_number IN (%s)
+                """ % ','.join(['%s'] * len(transactions))
+                cursor.execute(update_transactions_finished_query, transaction_ids)
+
+                # Step 6: Set in_trade = 0 for all involved trs
+                update_in_trade_query = """
+                UPDATE trs 
+                SET in_trade = 0 
+                WHERE trs_id IN (%s)
+                """ % ','.join(['%s'] * len(trs_ids))
+                cursor.execute(update_in_trade_query, trs_ids)
+
+                
+                # Step 7: Create the response list
+                response_list = []
+                for transaction in transactions:
+                    seller_user = await self.get_user(transaction['seller_id'])
+                    collection_data = await self.get_collection_data(transaction['collection_name'])
+                    
+                    response_list.append({
+                        'seller_id': transaction['seller_id'],
+                        'seller_email':seller_user['email'],
+                        'number': transaction['number'],
+                        'cost': transaction['cost'],
+                        'collection_name': transaction['collection_name'],
+                        'buyer_id':buyer_id,
+                        'buyer_email':buyer_user['email'],
+                        'creator_email':collection_data['creator']
+                    })
+
+                # Commit all changes to the database
+                self.connection.commit()
+                logger.info(f"Executed trade {trade_id}")
+                return response_list
+            except Error as e:
+                self.connection.rollback()
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
             

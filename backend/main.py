@@ -430,7 +430,7 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
             }
             try:
                 resp = await paypal.create_payment(data_transac)
-                logger.debug("1")
+                
                 amount = data.number*data.cost
                 await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id,amount)
                 logger.info(f"Payment created succesfully with id {resp['id']}")
@@ -481,61 +481,42 @@ async def execute_payment(
     HTTPException: If an error occurs during the payment execution.
     """
     try:
+        
         resp = await paypal.execute_payment(paymentId,PayerID)
         logger.info(f"Executed payment with id {paymentId}")
         await database_client.modify_paypal_transaction(paymentId,'executed')
 
-        initiate = await database_client.approve_initiated_transactions(paymentId)
-        if initiate:
-            logger.info(f"Approved initiated transactions with buyer payment id {paymentId}")
-        else:
-            raise HTTPException(status_code=500,detail="Failed to approve transaction. ")
-
-        transactions = await database_client.get_approved_transactions(paymentId)
-
         batch_id = str(uuid.uuid4)
-        for transaction in transactions:
-            seller_email = await database_client.get_user(transaction['seller_id'])
-            seller_email = seller_email['email']
-            buyer_email = await database_client.get_user(transaction['buyer_id'])
-            buyer_email = buyer_email['email']
-            creator_email = await database_client.get_creator(transaction['collection_id'])
-            creator_email = await database_client.get_user(creator_email)
-            creator_email = creator_email['email']
+        seller_data = await database_client.execute_trade(paymentId)
+        logger.info(f"Trade executed with id {paymentId}")
+        for seller in seller_data:
             payout_info = {
                     "batch_id":batch_id,
-                    "recipient_email":seller_email,
-                    "amount":(transaction['cost']*transaction['number']) * ( 100 - ROYALTY + FEES) / 100,
+                    "recipient_email":seller['seller_email'],
+                    "amount":(seller['cost']*seller['number']) * ( 100 - ROYALTY + FEES) / 100,
                     "currency":"USD",
-                    "note": f"Payment to {seller_email} for TRS of collection {transaction['collection_name']}. "
+                    "note": f"Payment to {seller['seller_email']} for TRS of collection {seller['collection_name']}. "
                 }
             await paypal.payout(payout_info)
+            logger.info(f"Paypal payout sent to {seller['seller_email']}. ")
             royalty_payout_info = payout_info = {
                     "batch_id":batch_id,
-                    "recipient_email":seller_email,
-                    "amount":(transaction['cost']*transaction['number']) * (ROYALTY) / 100,
+                    "recipient_email":seller['seller_email'],
+                    "amount":(seller['cost']*seller['number']) * (ROYALTY) / 100,
                     "currency":"USD",
-                    "note": f"Royalty for {creator_email} for trade of TRS of collection {transaction['collection_name']}. "
+                    "note": f"Royalty for {seller['creator_email']} for trade of TRS of collection {seller['collection_name']}. "
                 }
             data = {
-                "transaction_number":transaction['transaction_number'],
-                "buyer_id": transaction['buyer_id'],
-                "seller_id": transaction['seller_id'],
-                "seller_email": seller_email,
-                "buyer_email":buyer_email,
-                "trs_count": transaction['number']
+                "transaction_number":paymentId,
+                "buyer_id": seller['buyer_id'],
+                "seller_id": seller['seller_id'],
+                "seller_email": seller['seller_email'],
+                "buyer_email":seller['buyer_email'],
+                "trs_count": seller['number']
             }
             await transaction_module.transaction(data)
+            logger.info(f"Sent transaction to complete trade {paymentId}")
 
-            seller_wallet  = await database_client.get_wallet_by_collection(transaction['seller_id'],transaction['collection_name'])
-
-            req_trs = seller_wallet[0:transaction['number']-1]
-
-            for trs in req_trs: 
-                database_client.transfer_asset(transaction['buyer_id'],trs['trs_id'])
-
-
-        finalize = await database_client.finish_approved_transactions(paymentId)
         logger.info(f"Completed Trade with buyer transaction number {paymentId}")
         return {"message": f"Completed Trade with buyer transaction number {paymentId}"}
 
