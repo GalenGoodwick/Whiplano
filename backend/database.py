@@ -1605,6 +1605,11 @@ class DatabaseManager:
                 """ % ','.join(['%s'] * len(trs_ids))
                 cursor.execute(update_in_trade_query, trs_ids)
 
+                delete_marketplace_query = """
+                DELETE FROM marketplace 
+                WHERE trs_id IN (%s)
+                """ % ','.join(['%s'] * len(trs_ids))
+                cursor.execute(delete_marketplace_query, trs_ids)
                 
                 # Step 7: Create the response list
                 response_list = []
