@@ -1564,7 +1564,7 @@ class DatabaseManager:
                 fetch_transactions_query = """
                 SELECT transaction_number, buyer_id, seller_id, number, cost, collection_name 
                 FROM transactions 
-                WHERE transaction_number = %s
+                WHERE buyer_transaction_id = %s
                 """
                 cursor.execute(fetch_transactions_query, (trade_id,))
                 transactions = cursor.fetchall()
@@ -1575,11 +1575,11 @@ class DatabaseManager:
                 update_transactions_status_query = """
                 UPDATE transactions 
                 SET status = 'approved' 
-                WHERE transaction_number IN (%s)
+                WHERE buyer_transaction_id IN (%s)
                 """ % ','.join(['%s'] * len(transactions))
                 transaction_ids = [transaction['transaction_number'] for transaction in transactions]
                 cursor.execute(update_transactions_status_query, transaction_ids)
-
+                logger.info(f"Approved the transactions for trade {trade_id} ")
                 # Step 4: Change ownership of the trs (trs_id) to buyer_id from seller_id
                 update_ownership_query = """
                 UPDATE trs 
@@ -1589,15 +1589,15 @@ class DatabaseManager:
                 ownership_updates = [(transaction['buyer_id'], trs_id, transaction['seller_id']) 
                                     for trs_id in trs_ids for transaction in transactions]
                 cursor.executemany(update_ownership_query, ownership_updates)
-                
+                logger.info(f"Changed the owner for trade {trade_id}")
                 # Step 5: Change transaction status to 'finished'
                 update_transactions_finished_query = """
                 UPDATE transactions 
                 SET status = 'finished' 
-                WHERE transaction_number IN (%s)
+                WHERE buyer_transaction_id IN (%s)
                 """ % ','.join(['%s'] * len(transactions))
                 cursor.execute(update_transactions_finished_query, transaction_ids)
-
+                logger.info(f"Finished the transactions for trade {trade_id}")
                 # Step 6: Set in_trade = 0 for all involved trs
                 update_in_trade_query = """
                 UPDATE trs 
@@ -1605,13 +1605,13 @@ class DatabaseManager:
                 WHERE trs_id IN (%s)
                 """ % ','.join(['%s'] * len(trs_ids))
                 cursor.execute(update_in_trade_query, trs_ids)
-
+                logger.info(f"Set in_trade to zero for trade {trade_id}")
                 delete_marketplace_query = """
                 DELETE FROM marketplace 
                 WHERE trs_id IN (%s)
                 """ % ','.join(['%s'] * len(trs_ids))
                 cursor.execute(delete_marketplace_query, trs_ids)
-                
+                logger.info(f"Removed from marketplace for trade {trade_id}")
                 # Step 7: Create the response list
                 response_list = []
                 for transaction in transactions:
