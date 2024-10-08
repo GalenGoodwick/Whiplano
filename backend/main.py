@@ -422,10 +422,11 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
         try:
             description = f"Buy order for {data.number} TRS of {data.collection_name}. Price per TRS = {data.number}, Total Amount = {(data.number*data.cost)}"
             data_transac = {
-                'collection_name':(data.number)*(data.cost),
+                'collection_name':data.collection_name,
                 'cancel_url' : "https://example.com",
                 "description": description,
-                "return_url": SERVER_URL + "/trade/execute_payment"   
+                "return_url": SERVER_URL + "/trade/execute_payment",
+                'amount' :   (data.number)*(data.cost)
             }
             try:
                 resp = await paypal.create_payment(data_transac)
