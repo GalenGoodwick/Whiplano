@@ -1511,7 +1511,7 @@ class DatabaseManager:
 
                 transaction_insert_query = f"""
                 INSERT INTO transactions (transaction_number, collection_name, buyer_id, seller_id, cost, number, status,buyer_transaction_id) 
-                VALUES (%s, %s, %s, %s, %s, %s, 'initiated',{trade_id})
+                VALUES (%s, %s, %s, %s, %s, %s, 'initiated',"{trade_id}")
                 """
                 transaction_values = [
                     (str(uuid.uuid4()), collection_name, buyer_id, seller_id, cost, sellers[seller_id])
