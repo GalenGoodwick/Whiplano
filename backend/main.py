@@ -489,6 +489,7 @@ async def execute_payment(
         batch_id = str(uuid.uuid4)
         seller_data = await database_client.execute_trade(paymentId)
         logger.info(f"Trade executed with id {paymentId}")
+        token_account_address = None
         for seller in seller_data:
             amount = Decimal(seller['cost']) * Decimal(seller['number'])
             amount1 = amount * (Decimal(100-ROYALTY+FEES)/Decimal(100))
@@ -516,7 +517,8 @@ async def execute_payment(
                 "seller_id": seller['seller_id'],
                 "seller_email": seller['seller_email'],
                 "buyer_email":seller['buyer_email'],
-                "trs_count": seller['number']
+                "trs_count": seller['number'],
+                'token_account_address':token_account_address
             }
             #await transaction_module.transaction(data)
             logger.info(f"Sent transaction to complete trade {paymentId}")

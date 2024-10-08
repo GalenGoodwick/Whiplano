@@ -112,7 +112,7 @@ class TransactionCreator:
 async def transaction(data):
     
     e = TransactionCreator(
-        await get_token_account_address())
+        data['transaction_number'])
     await e.send_transaction(
         data['transaction_number'],
         data['seller_email'],

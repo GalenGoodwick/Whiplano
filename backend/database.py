@@ -1604,7 +1604,14 @@ class DatabaseManager:
                 WHERE trs_id IN (%s)
                 """ % ','.join(['%s'] * len(trs_ids))
                 cursor.execute(update_in_trade_query, trs_ids)
+                remove_marketplace_query = """
+                UPDATE trs 
+                SET marketplace = 0 
+                WHERE trs_id IN (%s)
+                """ % ','.join(['%s'] * len(trs_ids))
+                cursor.execute(remove_marketplace_query, trs_ids)
                 logger.info(f"Set in_trade to zero for trade {trade_id}")
+                
                 delete_marketplace_query = """
                 DELETE FROM marketplace 
                 WHERE trs_id IN (%s)
