@@ -438,7 +438,7 @@ async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current
 
                         
 
-                return {"message": "Payment created successful.",
+                return {"message": "Payment created successfully.",
                         'approval_url': resp['links'][1]['href']}
                 
             except Exception as e:

@@ -1551,15 +1551,15 @@ class DatabaseManager:
                 """
                 cursor.execute(fetch_trs_query, (trade_id,))
                 trs_ids = [trs['trs_id'] for trs in cursor.fetchall()]
-
+                logger.info(f"Fetched TRS ID's for trade {trade_id}.")
                 # Step 2: Update trades status to 'finished'
                 update_trades_query = """
                 UPDATE trades 
-                SET status = 'finished' 
+                SET status = 'completed' 
                 WHERE trade_id = %s
                 """
                 cursor.execute(update_trades_query, (trade_id,))
-
+                logger.info(f"Updated trade_status to finished for trade {trade_id}.")
                 # Step 3: Fetch all transactions corresponding to this trade and change status to 'approved'
                 fetch_transactions_query = """
                 SELECT transaction_number, buyer_id, seller_id, number, cost, collection_name 
