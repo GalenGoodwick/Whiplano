@@ -409,51 +409,47 @@ async def create_trs_request(
 
 @app.post('/trade/create',dependencies=[Depends(get_current_user)],tags=['Transactions'],summary="Creates a trade.",description="Creates a trade, adds it to the pending trades database, creates a paypal transaction")
 async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
-    wallets = {}
-    for i in data.seller_id:
-        wallets[i] = await database_client.get_wallet_formatted(buyer.id)
-    req_trs = {}
-    
-    trs_count = 0
-    for i in wallets:
-        trs_count += len(wallets[i])
-    if trs_count < data.number:
-        logger.info("Not enough TRS being offered by the sellers. ")
-        raise HTTPException(status_code=400, detail="Insufficient funds")
-    
-    else:
-        print("1")
-        description = f"Buy order for {data.number} TRS of {data.collection_name}. Price per TRS = {data.number}, Total Amount = {(data.number*data.cost)}"
-        data_transac = {
-            'collection_name':(data.number)*(data.cost),
-            'cancel_url' : "https://example.com",
-            "description": description,
-            "return_url": SERVER_URL + "/trade/execute_payment"   
-        }
-        try:
-            resp = await paypal.create_payment(data_transac)
-            await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id,(data.number)*(data.cost))
-            logger.info(f"Payment created succesfully with id {resp['id']}")
-            buyer_transaction_number = resp['id']
-            required_transactions = {}
-            required_number = data.number
-            for seller_id in data.seller_id:
-                if len(wallets[seller_id]) >= required_number:
-                    required_transactions[seller_id] = wallets[seller_id][0:required_number-1]
-                else:
-                    required_transactions[seller_id] = wallets[seller_id]
-                    required_number -= len(wallets[seller_id])
-            
-            for seller_id in required_transactions:
-                await database_client.add_transaction(buyer_transaction_number,data.collection_name,buyer.id,seller_id,data.cost,len(required_transactions['seller_id']))
-                    
-                    
 
-            return {"message": "Payment created successful.",
-                    'approval_url': resp['links'][1]['href']}
+    mrktplace_collection = await database_client.get_marketplace_collection(data.collection_name)
+    number_of_trs = 0
+    for i in mrktplace_collection:
+        if i['collection_name'] == data.collection_name and i['bid_price']  == data.cost:
+            number_of_trs = i['number_of_trs']
+    if len(number_of_trs) < data.number:
+        logger.info("Not enough TRS being offered by the sellers at the given price. ")
+        raise HTTPException(status_code=400, detail="Not enough TRS being offered by the sellers at the given price. ")
+    else: 
+        try:
+            description = f"Buy order for {data.number} TRS of {data.collection_name}. Price per TRS = {data.number}, Total Amount = {(data.number*data.cost)}"
+            data_transac = {
+                'collection_name':(data.number)*(data.cost),
+                'cancel_url' : "https://example.com",
+                "description": description,
+                "return_url": SERVER_URL + "/trade/execute_payment"   
+            }
+            try:
+                resp = await paypal.create_payment(data_transac)
+                await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id,(data.number)*(data.cost))
+                logger.info(f"Payment created succesfully with id {resp['id']}")
+                trade_create_data = await database_client.trade_create(resp['id'], data.cost,data.number,data.collection_name,buyer.id)
+                
+                        
+
+                return {"message": "Payment created successful.",
+                        'approval_url': resp['links'][1]['href']}
+                
+            except Exception as e:
+                raise HTTPException(status_code=501, detail=str(e))
             
-        except Exception as e:
-            raise HTTPException(status_code=501, detail=str(e))
+
+
+        except HTTPException as e:
+            logger.error(e)
+            raise e
+        except Exception as e: 
+            logger.error(e)
+            raise HTTPException(status_code = 500, detail=e)
+        
         
         
 

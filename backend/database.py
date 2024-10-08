@@ -1448,33 +1448,9 @@ class DatabaseManager:
 
             finally: 
                 cursor.close()
-    async def get_trs_for_trade(self,collection,number,price):
-        if not self.connection:
-            logger.critical("No database connection")
-            e = await self.attempt_connection()
-            if not e:
-                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
-            else:
-                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
-        else:
-            try: 
-                cursor = self.connection.cursor(dictionary=True)
-                query = """
-                INSERT INTO trades (buyer_id, seller_id, trs_id, status)
-                VALUES (%s, %s, %s, %s);
-                """
-                cursor.executemany(query)
-                print(f"{cursor.rowcount} trades added successfully.")
-                self.connection.commit()
-            except Error as e:
-                logger.error(f"Error: {e}")
-                raise HTTPException(status_code=400, detail=str(e))
-
-            finally: 
-                cursor.close()
-
+   
                 
-    async def trade_create(self):
+    async def trade_create(self,trade_id, cost, number, collection_name,buyer_id):
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
@@ -1485,12 +1461,68 @@ class DatabaseManager:
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)
-                query = """
-                INSERT INTO trades (buyer_id, seller_id, trs_id, status)
-                VALUES (%s, %s, %s, %s);
+                marketplace_query = """
+                SELECT trs_id, bid_price 
+                FROM marketplace 
+                WHERE collection_name = %s AND bid_price = %s
                 """
-                cursor.executemany(query, trades)
-                print(f"{cursor.rowcount} trades added successfully.")
+                cursor.execute(marketplace_query, (collection_name, cost))
+                marketplace_trs = cursor.fetchall()
+
+                if len(marketplace_trs) < number:
+                    raise ValueError(f"Not enough trs available. Required: {number}, Found: {len(marketplace_trs)}")
+
+                # Step 2: Get trs data from trs table with in_trade = 0
+                trs_ids = [trs['trs_id'] for trs in marketplace_trs]
+                trs_query = """
+                SELECT trs_id, user_id 
+                FROM trs 
+                WHERE trs_id IN (%s) AND in_trade = 0
+                """ % ','.join(['%s'] * len(trs_ids))
+                
+                cursor.execute(trs_query, trs_ids)
+                available_trs = cursor.fetchall()
+                if len(available_trs) < number:
+                    raise ValueError(f"Not enough trs available in trs table. Required: {number}, Found: {len(available_trs)}")
+
+                selected_trs = available_trs[:number]
+                update_trs_query = """
+                UPDATE trs 
+                SET in_trade = 1 
+                WHERE trs_id IN (%s)
+                """ % ','.join(['%s'] * number)
+                cursor.execute(update_trs_query, [trs['trs_id'] for trs in selected_trs])
+
+                trade_insert_query = """
+                INSERT INTO trades (trade_id, buyer_id, seller_id, trs_id, status) 
+                VALUES (%s, %s, %s, %s, 'initiated')
+                """
+                trade_values = [(trade_id, buyer_id, trs['user_id'], trs['trs_id']) for trs in selected_trs]
+                cursor.executemany(trade_insert_query, trade_values)
+
+
+                # Step 5: Insert into transactions table for each seller
+                sellers = {}
+                for trs in selected_trs:
+                    seller_id = trs['user_id']
+                    if seller_id not in sellers:
+                        sellers[seller_id] = 0
+                    sellers[seller_id] += 1
+
+                transaction_insert_query = """
+                INSERT INTO transactions (transaction_number, collection_name, buyer_id, seller_id, cost, number, status) 
+                VALUES (%s, %s, %s, %s, %s, %s, 'initiated')
+                """
+                transaction_values = [
+                    (str(uuid.uuid4()), collection_name, buyer_id, seller_id, cost, sellers[seller_id])
+                    for seller_id in sellers
+                ]
+                cursor.executemany(transaction_insert_query, transaction_values)
+
+                # Commit changes to the database
+                self.connection.commit()
+                logger.info(f"Transaction for collection {collection_name} and buyer {buyer_id} processed successfully.")
+                
                 self.connection.commit()
             except Error as e:
                 logger.error(f"Error: {e}")
