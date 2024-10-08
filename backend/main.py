@@ -719,7 +719,7 @@ async def artisan_activate(collection_name: str, number: int, user: User = Depen
                 values.append((i['trs_id'],))
             await database_client.activate_artisan_trs(values, user.id)
 
-            return {"message": "TRS added to marketplace successfully."}
+            return {"message": "Artisan rights activated. "}
         else:
             return {"message": F"Insufficient TRS of {collection_name} in wallet."}
     except Exception as e:
@@ -739,7 +739,7 @@ async def artisan_deactivate(collection_name: str, number: int, user: User = Dep
         if len(req_wallet) >= number:
             values = []
             for i in req_wallet[:number]:
-                values.append(i['trs_id'])
+                values.append((i['trs_id'],))
             await database_client.deactivate_artisan_trs(values, user.id)
 
             return {"message": "TRS added to marketplace successfully."}
