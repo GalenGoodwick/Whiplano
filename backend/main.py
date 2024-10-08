@@ -742,9 +742,9 @@ async def artisan_deactivate(collection_name: str, number: int, user: User = Dep
                 values.append((i['trs_id'],))
             await database_client.deactivate_artisan_trs(values, user.id)
 
-            return {"message": "TRS added to marketplace successfully."}
+            return {"message": f"Artisan rights deactivated for the trs {collection_name}"}
         else:
-            return {"message": F"Insufficient TRS of {collection_name} in wallet."}
+            return {"message": f"Insufficient TRS of {collection_name} in wallet."}
         
     except Exception as e:
         logger.error("Error in deactivating artisan rights for trs. ", e)
