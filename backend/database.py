@@ -1568,6 +1568,7 @@ class DatabaseManager:
                 """
                 cursor.execute(fetch_transactions_query, (trade_id,))
                 transactions = cursor.fetchall()
+                logger.debug(transactions)
                 buyer_id = transactions[0]['buyer_id']
                 buyer_user = await self.get_user(buyer_id)
                 
