@@ -16,7 +16,7 @@ import logging
 import uuid
 from decimal import Decimal
 import shutil
-
+from backend.models import SignupRequest, NFTData, CreatePaymentData,BlockChainTransactionData, MintTrsData,TradeCreateData, KYCData, Metadata, User
 from . import mint 
 
 ROYALTY  = 2.5
@@ -50,51 +50,6 @@ GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 REDIRECT_URI = SERVER_URL + "/callback/google"
 
-
-#BASE MODELS
-class SignupRequest(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
-    
-class NFTData(BaseModel):
-    collection_name: str = Field(..., description="Name of the collection") 
-    collection_description: str = Field(..., description="Description of the collection")
-    collection_symbol: str = Field(..., description="Symbol of the collection")
-    number: int = Field(..., description="Number of TRSs")
-    uri: str = Field(..., description="URI of the NFT")
-    creator_id: str = Field(..., description="ID of the creator")
-
-class CreatePaymentData(BaseModel):
-    amount : int =  Field(..., description="Amount")
-    cancel_url : str = Field(..., description="URL for the user to be redirected to when the payment is cancelled. ")
-    description : str = Field(...,description="Description of the payment for Paypal.")
-
-class BlockChainTransactionData(BaseModel):
-    transaction_number : str = Field(..., description = "Transaction number of the paypal transaction to be stored on the chain. ")
-
-class MintTrsData(BaseModel):
-    collection_name : str = Field(..., description = "Name of the collection")
-    collection_description : str = Field(..., description = "Description of the collection")
-    number : int = Field(..., description = "Number of TRSs")
-    uri : str = Field(..., description="URI of the NFT")
-   
-class TradeCreateData(BaseModel):
-    collection_name : str = Field(..., description = "Name of the collection to be bought")
-    number : int = Field(..., description = "Number of TRSs to be traded") 
-    cost : float = Field(..., description = "Cost of one TRS")
-
-class KYCData(BaseModel):
-    first_name: str
-    last_name: str
-    date_of_birth: date
-    address: str
-    identity_type: str  # 'passport' or 'national_id' or 'driver's license'
-    address_proof_type : str # 'utility bill' or anything else. 
-
-class Metadata(BaseModel):
-    title: str
-    description: str
 @app.get("/")
 async def root():
     """
@@ -510,7 +465,10 @@ async def execute_payment(
                     "currency":"USD",
                     "note": f"Royalty for {seller['creator_email']} for trade of TRS of collection {seller['collection_name']}. "
                 }
-            
+            if not token_account_address:
+                token_account_address = 1
+            else: 
+                token_account_address = await database_client.get_token_account_address(seller['collection_name'])
             data = {
                 "transaction_number":paymentId,
                 "buyer_id": seller['buyer_id'],
@@ -520,9 +478,10 @@ async def execute_payment(
                 "trs_count": seller['number'],
                 'token_account_address':token_account_address
             }
-            #await transaction_module.transaction(data)
+            
+            await transaction_module.transaction(data)
             logger.info(f"Sent transaction to complete trade {paymentId}")
-
+            
         logger.info(f"Completed Trade with buyer transaction number {paymentId}")
         return {"message": f"Completed Trade with buyer transaction number {paymentId}"}
 

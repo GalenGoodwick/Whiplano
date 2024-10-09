@@ -42,6 +42,7 @@ class DatabaseManager:
                 logger.info("Successfully connected to the database")
         except Error as e:
             logger.error(f"Error: {e}")
+            self.connection = None
             raise HTTPException(status_code=400, detail=str(e))
             self.connection = None
     async def conn(self):
@@ -1646,4 +1647,28 @@ class DatabaseManager:
 
             finally: 
                 cursor.close()
-            
+
+    async def get_token_account_address(self, collection_name):
+        if not self.connection:
+            logger.critical("No database connection")
+            e = await self.attempt_connection()
+            if not e:
+                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+            else:
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
+        else:
+            try: 
+                cursor = self.connection.cursor(dictionary=True)
+                query = "select * from collections where collection_name = %s"
+                cursor.execute(query,(collection_name,))
+                logger.info(f"Fetched token account address of collection : {collection_name}")
+                result = cursor.fetchall()
+                token_account_address = result[0]["token_account_address"]
+                return token_account_address
+                
+            except Error as e:
+                logger.error(f"Error: {e}")
+                raise HTTPException(status_code=400, detail=str(e))
+
+            finally: 
+                cursor.close()
