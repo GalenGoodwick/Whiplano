@@ -9,6 +9,7 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 import uuid
 from backend import database 
+from backend.models import User, Token, TokenData
 
 
 import smtplib
@@ -38,17 +39,7 @@ app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-class User(BaseModel):
-    username: str
-    email: str
-    id : str
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: str
 
 def hash_password(password: str) -> bytes:
     """

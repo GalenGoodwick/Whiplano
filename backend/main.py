@@ -14,9 +14,9 @@ import os
 import requests
 import logging
 import uuid
-
+from decimal import Decimal
 import shutil
-
+from backend.models import SignupRequest, NFTData, CreatePaymentData,BlockChainTransactionData, MintTrsData,TradeCreateData, KYCData, Metadata, User
 from . import mint 
 
 ROYALTY  = 2.5
@@ -38,63 +38,18 @@ app = FastAPI(
     }
 )
 whiplano_id = '0000-0000-0000'
-
 database_client = database.DatabaseManager(
     host=os.getenv("DATABASE_HOST"),
     user=os.getenv("DATABASE_USERNAME"),
     password=os.getenv("DATABASE_PASSWORD"),
     database =os.getenv("DATABASE_NAME")
 )
+
+
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 REDIRECT_URI = SERVER_URL + "/callback/google"
 
-
-#BASE MODELS
-class SignupRequest(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
-    
-class NFTData(BaseModel):
-    collection_name: str = Field(..., description="Name of the collection") 
-    collection_description: str = Field(..., description="Description of the collection")
-    collection_symbol: str = Field(..., description="Symbol of the collection")
-    number: int = Field(..., description="Number of TRSs")
-    uri: str = Field(..., description="URI of the NFT")
-    creator_id: str = Field(..., description="ID of the creator")
-
-class CreatePaymentData(BaseModel):
-    amount : int =  Field(..., description="Amount")
-    cancel_url : str = Field(..., description="URL for the user to be redirected to when the payment is cancelled. ")
-    description : str = Field(...,description="Description of the payment for Paypal.")
-
-class BlockChainTransactionData(BaseModel):
-    transaction_number : str = Field(..., description = "Transaction number of the paypal transaction to be stored on the chain. ")
-
-class MintTrsData(BaseModel):
-    collection_name : str = Field(..., description = "Name of the collection")
-    collection_description : str = Field(..., description = "Description of the collection")
-    number : int = Field(..., description = "Number of TRSs")
-    uri : str = Field(..., description="URI of the NFT")
-   
-class TradeCreateData(BaseModel):
-    collection_name : str = Field(..., description = "Name of the collection to be bought")
-    seller_id : list = Field(..., description = "ID of the seller")
-    number : int = Field(..., description = "Number of TRSs to be traded") 
-    cost : float = Field(..., description = "Cost of one TRS")
-
-class KYCData(BaseModel):
-    first_name: str
-    last_name: str
-    date_of_birth: date
-    address: str
-    identity_type: str  # 'passport' or 'national_id' or 'driver's license'
-    address_proof_type : str # 'utility bill' or anything else. 
-
-class Metadata(BaseModel):
-    title: str
-    description: str
 @app.get("/")
 async def root():
     """
@@ -281,9 +236,14 @@ async def admin_creation_requests():
 
 @app.post("/admin/approve",dependencies = [Depends(get_current_user)],tags = ["Admin"],summary = "For approving TRS creation requests, and minting the TRS")
 async def admin_approve(id: int):
+
+    
     number = 1000
     trs_creation_data = await database_client.get_trs_creation_data(id)
     trs_creation_data = trs_creation_data[0]
+    exist = await database_client.check_collection_exists(trs_creation_data['title'])
+    if exist: 
+        raise HTTPException(status_code= 409, detail = "Collection already exists.")   
     mint_address = await mint.mint(trs_creation_data['title'],trs_creation_data['description'],number,trs_creation_data['creator_email'])
     token_account_address = await transaction_module.get_token_account_address(Pubkey.from_string(mint_address))
     await database_client.approve_trs_creation_request(id,trs_creation_data['creator_email'],number,mint_address,trs_creation_data['title'],token_account_address)
@@ -378,7 +338,17 @@ async def create_trs_request(
     """
     if len(files) > 10:
         return JSONResponse(status_code=400, content={"message": "A maximum of 10 files can be uploaded."})
+    exist = await database_client.check_collection_exists(title)
+    pend_request = await database_client.get_trs_creation_requests('pending')
+    confirmed_request = await database_client.get_trs_creation_requests('approved')
+    all_request = pend_request + confirmed_request
+    for request in all_request: 
+        if request['title'] == title:
+            raise HTTPException(status_code=409, detail = "There is already a TRS creation request in this Title.")
+    if exist: 
+        raise HTTPException(status_code=409, detail = "Collection already exists.")
     try:
+        
         file_urls = []
         for file in files:
             file_url = await storage.upload_to_s3(file,f'trs_data/{title}/{file.filename}')
@@ -390,54 +360,56 @@ async def create_trs_request(
 
         return JSONResponse(status_code= 200, content = {"message":"Trs creation request submitted succesfully. "})
     except Exception as e:
-        return HTTPException(status_code = 500, content = str(e))
+        return HTTPException(status_code = 500, detail = str(e))
 
 @app.post('/trade/create',dependencies=[Depends(get_current_user)],tags=['Transactions'],summary="Creates a trade.",description="Creates a trade, adds it to the pending trades database, creates a paypal transaction")
 async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
-    wallets = {}
-    for i in data.seller_id:
-        wallets[i] = await database_client.get_wallet_by_collection(i,data.collection_name)
-    trs_count = 0
-    for i in wallets:
-        trs_count += len(wallets[i])
-    if trs_count < data.number:
-        logger.info("Not enough TRS being offered by the sellers. ")
-        raise HTTPException(status_code=400, detail="Insufficient funds")
-    
-    else:
-        description = f"Buy order for {data.number} TRS of {data.collection_name}. Price per TRS = {data.number}, Total Amount = {(data.number*data.cost)}"
-        data_transac = {
-            'collection_name':(data.number)*(data.cost),
-            'cancel_url' : "https://example.com",
-            "description": description,
-            "return_url": SERVER_URL + "/trade/execute_payment"   
-        }
-        try:
-            resp = await paypal.create_payment(data_transac)
-            await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id)
-            logger.info(f"Payment created succesfully with id {resp['id']}")
-            buyer_transaction_number = resp['id']
-            required_transactions = {}
-            required_number = data.number
-            for seller_id in data.seller_id:
-                if len(wallets[seller_id]) >= required_number:
-                    required_transactions[seller_id] = wallets[seller_id][0:required_number-1]
-                else:
-                    required_transactions[seller_id] = wallets[seller_id]
-                    required_number -= len(wallets[seller_id])
-            
-            for seller_id in required_transactions:
-                await database_client.add_transaction(buyer_transaction_number,data.collection_name,buyer.id,seller_id,data.cost,len(required_transactions['seller_id']))
-                    
-                    
 
-            return {"message": "Payment created successful.",
-                    'approval_url': resp['links'][1]['href']}
+    mrktplace_collection = await database_client.get_marketplace_collection(data.collection_name)
+    number_of_trs = 0
+    for i in mrktplace_collection:
+        if i['collection_name'] == data.collection_name and i['bid_price']  == data.cost:
+            number_of_trs = i['number_of_trs']
+    if number_of_trs < data.number:
+        logger.info("Not enough TRS being offered by the sellers at the given price. ")
+        raise HTTPException(status_code=400, detail="Not enough TRS being offered by the sellers at the given price. ")
+    else: 
+        try:
+            description = f"Buy order for {data.number} TRS of {data.collection_name}. Price per TRS = {data.number}, Total Amount = {(data.number*data.cost)}"
+            data_transac = {
+                'collection_name':data.collection_name,
+                'cancel_url' : "https://example.com",
+                "description": description,
+                "return_url": SERVER_URL + "/trade/execute_payment",
+                'amount' :   (data.number)*(data.cost)
+            }
+            try:
+                resp = await paypal.create_payment(data_transac)
+                
+                amount = data.number*data.cost
+                await database_client.add_paypal_transaction(resp['id'],buyer.id,whiplano_id,amount)
+                logger.info(f"Payment created succesfully with id {resp['id']}")
+                trade_create_data = await database_client.trade_create(resp['id'], data.cost,data.number,data.collection_name,buyer.id)
+
+                        
+
+                return {"message": "Payment created successfully.",
+                        'approval_url': resp['links'][1]['href']}
+                
+            except Exception as e:
+                raise HTTPException(status_code=501, detail=str(e))
             
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+
+
+        except HTTPException as e:
+            logger.error(e)
+            raise e
+        except Exception as e: 
+            logger.error(e)
+            raise HTTPException(status_code = 500, detail=e)
         
-        return
+        
+        
 
 
 @app.get('/trade/execute_payment',tags =['Transactions'],summary='Executes the trade.',description='Executes the buyer transaction, sends payouts, transafers assets, and Finalizes the trade.')
@@ -464,61 +436,52 @@ async def execute_payment(
     HTTPException: If an error occurs during the payment execution.
     """
     try:
+        
         resp = await paypal.execute_payment(paymentId,PayerID)
         logger.info(f"Executed payment with id {paymentId}")
         await database_client.modify_paypal_transaction(paymentId,'executed')
 
-        initiate = await database_client.approve_initiated_transactions(paymentId)
-        if initiate:
-            logger.info(f"Approved initiated transactions with buyer payment id {paymentId}")
-        else:
-            raise HTTPException(status_code=500,detail="Failed to approve transaction. ")
-
-        transactions = await database_client.get_approved_transactions(paymentId)
-
         batch_id = str(uuid.uuid4)
-        for transaction in transactions:
-            seller_email = await database_client.get_user(transaction['seller_id'])
-            seller_email = seller_email['email']
-            buyer_email = await database_client.get_user(transaction['buyer_id'])
-            buyer_email = buyer_email['email']
-            creator_email = await database_client.get_creator(transaction['collection_id'])
-            creator_email = await database_client.get_user(creator_email)
-            creator_email = creator_email['email']
+        seller_data = await database_client.execute_trade(paymentId)
+        logger.info(f"Trade executed with id {paymentId}")
+        token_account_address = None
+        for seller in seller_data:
+            amount = Decimal(seller['cost']) * Decimal(seller['number'])
+            amount1 = amount * (Decimal(100-ROYALTY+FEES)/Decimal(100))
+            amount2 = amount * (Decimal(ROYALTY)/Decimal(100))
             payout_info = {
                     "batch_id":batch_id,
-                    "recipient_email":seller_email,
-                    "amount":(transaction['cost']*transaction['number']) * ( 100 - ROYALTY + FEES) / 100,
+                    "recipient_email":seller['seller_email'],
+                    "amount":str(amount1),
                     "currency":"USD",
-                    "note": f"Payment to {seller_email} for TRS of collection {transaction['collection_name']}. "
+                    "note": f"Payment to {seller['seller_email']} for TRS of collection {seller['collection_name']}. "
                 }
             await paypal.payout(payout_info)
+            logger.info(f"Paypal payout sent to {seller['seller_email']}. ")
             royalty_payout_info = payout_info = {
                     "batch_id":batch_id,
-                    "recipient_email":seller_email,
-                    "amount":(transaction['cost']*transaction['number']) * (ROYALTY) / 100,
+                    "recipient_email":seller['seller_email'],
+                    "amount":str(amount2),
                     "currency":"USD",
-                    "note": f"Royalty for {creator_email} for trade of TRS of collection {transaction['collection_name']}. "
+                    "note": f"Royalty for {seller['creator_email']} for trade of TRS of collection {seller['collection_name']}. "
                 }
+            if not token_account_address:
+                token_account_address = 1
+            else: 
+                token_account_address = await database_client.get_token_account_address(seller['collection_name'])
             data = {
-                "transaction_number":transaction['transaction_number'],
-                "buyer_id": transaction['buyer_id'],
-                "seller_id": transaction['seller_id'],
-                "seller_email": seller_email,
-                "buyer_email":buyer_email,
-                "trs_count": transaction['number']
+                "transaction_number":paymentId,
+                "buyer_id": seller['buyer_id'],
+                "seller_id": seller['seller_id'],
+                "seller_email": seller['seller_email'],
+                "buyer_email":seller['buyer_email'],
+                "trs_count": seller['number'],
+                'token_account_address':token_account_address
             }
+            
             await transaction_module.transaction(data)
-
-            seller_wallet  = await database_client.get_wallet_by_collection(transaction['seller_id'],transaction['collection_name'])
-
-            req_trs = seller_wallet[0:transaction['number']-1]
-
-            for trs in req_trs: 
-                database_client.transfer_asset(transaction['buyer_id'],trs['trs_id'])
-
-
-        finalize = await database_client.finish_approved_transactions(paymentId)
+            logger.info(f"Sent transaction to complete trade {paymentId}")
+            
         logger.info(f"Completed Trade with buyer transaction number {paymentId}")
         return {"message": f"Completed Trade with buyer transaction number {paymentId}"}
 
@@ -628,7 +591,7 @@ async def marketplace_add(collection_name: str, number: int,price:int, user: Use
         req_wallet = []
         
         for i in wallet['trs']: 
-            logger.debug(i)
+            
             if i['collection_name'] == collection_name and i['marketplace'] == 0 and i['artisan'] == 0:
                 req_wallet.append(i)
 
@@ -636,8 +599,8 @@ async def marketplace_add(collection_name: str, number: int,price:int, user: Use
             values = []
             values2 = []
             for i in req_wallet[:number]:
-                price = 1000
-                values.append((i['trs_id'],collection_name, user.id,price))
+        
+                values.append((i['trs_id'],collection_name,'sell', user.id,price))
                 values2.append((i['trs_id'],))
             await database_client.add_trs_to_marketplace(user.id,values,values2,i['collection_name'])
 
@@ -701,7 +664,7 @@ async def artisan_activate(collection_name: str, number: int, user: User = Depen
                 values.append((i['trs_id'],))
             await database_client.activate_artisan_trs(values, user.id)
 
-            return {"message": "TRS added to marketplace successfully."}
+            return {"message": "Artisan rights activated. "}
         else:
             return {"message": F"Insufficient TRS of {collection_name} in wallet."}
     except Exception as e:
@@ -721,12 +684,12 @@ async def artisan_deactivate(collection_name: str, number: int, user: User = Dep
         if len(req_wallet) >= number:
             values = []
             for i in req_wallet[:number]:
-                values.append(i['trs_id'])
+                values.append((i['trs_id'],))
             await database_client.deactivate_artisan_trs(values, user.id)
 
-            return {"message": "TRS added to marketplace successfully."}
+            return {"message": f"Artisan rights deactivated for the trs {collection_name}"}
         else:
-            return {"message": F"Insufficient TRS of {collection_name} in wallet."}
+            return {"message": f"Insufficient TRS of {collection_name} in wallet."}
         
     except Exception as e:
         logger.error("Error in deactivating artisan rights for trs. ", e)

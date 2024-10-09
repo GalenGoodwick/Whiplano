@@ -163,6 +163,6 @@ async def payout(data):
         currency=data['currency'],
         note=data['note'])
     
-    logger.info(f"Payout sent to {data['recipient_email']}, amount = {data['ammount']} ")
+    logger.info(f"Payout sent to {data['recipient_email']}, amount = {data['amount']} ")
     return response
 
