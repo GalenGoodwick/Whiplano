@@ -45,6 +45,8 @@ class DatabaseManager:
             self.connection = None
             raise HTTPException(status_code=400, detail=str(e))
             self.connection = None
+
+            
     async def conn(self):
         """
         Attempts to reconnect to the database. 
@@ -70,12 +72,26 @@ class DatabaseManager:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
         return False
+
+    
     async def attempt_connection(self):
+        """
+        Attempts to establish a connection to the database.
+
+        This function attempts to establish a connection to the database by calling the `conn()` method.
+        If the connection is successful, it returns True. If the connection fails, it retries up to 5 times,
+        waiting 3 seconds between each attempt. If all attempts fail, it returns False.
+
+        Parameters:
+        None
+
+        Returns:
+        bool: True if the connection is successful, False otherwise.
+        """
         connection = False
         for i in range(5):
             connection = await self.conn()
             if connection: 
-                
                 return True
             else:
                 logger.error("Connection failed, trying again in 3.")
@@ -122,8 +138,6 @@ class DatabaseManager:
             logger.error("Failed to update last_login for user. ")
         finally:
             cursor.close()
-            
-            
 
                 
     async def add_user(self, username, email, password_hash):
@@ -167,6 +181,7 @@ class DatabaseManager:
              
         finally:
             cursor.close()
+
 
     async def get_user(self, user_id):
         """
@@ -236,6 +251,7 @@ class DatabaseManager:
             
         finally:
             cursor.close()
+
             
     async def update_user(self, user_id, username=None, email=None, password_hash=None):
         """
@@ -323,22 +339,21 @@ class DatabaseManager:
             raise HTTPException(status_code=400, detail=str(e))
         finally:
             cursor.close()
+            
+
 
     async def add_asset(self, values):
         """
-        Adds a new asset (token) to the user's wallet in the database.
-
-        This function checks if a database connection is available. If not, it prints a message indicating the lack of a
-        database connection and returns early. If a connection is available, it attempts to insert a new asset record into
-        the 'trs' table. The 'wallet_id' is set to the same value as 'user_id'.
+        Adds a new asset (token) to the database.
 
         Parameters:
-        - user_id (int): The unique identifier of the user who owns the asset.
-        - trs_id (str): The unique identifier of the asset (token).
-        - collection_id (str): The identifier of the collection to which the asset belongs.
+        - values (list): A list of tuples, where each tuple contains the user_id, trs_id, collection_name, and creator of an asset.
 
         Returns:
         - None
+
+        Raises:
+        - HTTPException: If there is an error connecting to the database or executing the query.
         """
         if not self.connection:
             logger.critical("No database connection")
@@ -353,10 +368,11 @@ class DatabaseManager:
 
             cursor.executemany(query, values)
             self.connection.commit()
-            logger.info(f"Tokens added succesfully. ")
+            logger.info(f"Tokens added successfully. ")
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
+
         
     async def get_owner(self, trs_id):
         """
@@ -389,7 +405,8 @@ class DatabaseManager:
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
-            return None
+        finally:
+            cursor.close()
     
     async def add_transaction(self, buyer_transaction_number, trs_id, buyer_id, seller_id, amount, number):
         """
@@ -429,6 +446,7 @@ class DatabaseManager:
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
+
     
     async def modify_transaction(self, transaction_number,status):
         """
@@ -461,6 +479,10 @@ class DatabaseManager:
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
+        finally: 
+            cursor.close()
+
+            
     async def transfer_asset(self, user_id, trs_id):
         """
         Transfers an asset (token) from the current owner to a new user in the database.
@@ -492,7 +514,9 @@ class DatabaseManager:
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
-    
+        finally: 
+            cursor.close()
+
     
     async def close_connection(self):
         """
@@ -510,6 +534,7 @@ class DatabaseManager:
         if self.connection and self.connection.is_connected():
             self.connection.close()
             logger.info("Database connection closed")
+
             
     async def add_trs(self,number, mint_address, collection_name, token_account_address,creator_id):
         """
@@ -551,6 +576,9 @@ class DatabaseManager:
         except Error as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
+        finally:
+            cursor.close()
+            
 
     async def add_paypal_transaction(self, transaction_number, buyer_id, seller_id, amount):
         """
@@ -587,8 +615,22 @@ class DatabaseManager:
         except Error as e:
             logger.error(f"Error adding paypal transaction: {e}")
             raise HTTPException(status_code=400, detail=str(e))
+
             
-    async def modify_paypal_transaction(self,transaction_id,status):
+    async def modify_paypal_transaction(self, transaction_id, status):
+        """
+        Updates the status of a PayPal transaction in the database.
+
+        Parameters:
+        transaction_id (str): The unique identifier of the PayPal transaction.
+        status (str): The new status of the transaction.
+
+        Returns:
+        None
+
+        Raises:
+        HTTPException: If there is an error connecting to the database or updating the transaction.
+        """
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
@@ -600,10 +642,15 @@ class DatabaseManager:
             cursor = self.connection.cursor()
             query = f"UPDATE paypal_transactions SET status = %s WHERE transaction_id = %s"
             values = (str(status),str(transaction_id))
-            logger.info(f"Updated paypal transaction {transaction_id} to {status} ")
+            cursor.execute(query, values)
+            logger.info(f"Updated PayPal transaction {transaction_id} to {status} ")
         except Error as e:
-            logger.error(f"Error updating paypal transaction : {e}")
+            logger.error(f"Error updating PayPal transaction: {e}")
             raise HTTPException(status_code=400, detail=str(e))
+        finally:
+            cursor.close()
+
+            
     async def get_wallet(self, user_id):
         """
         Retrieves the wallet of a user from the database.
@@ -645,14 +692,27 @@ class DatabaseManager:
             finally: 
                 cursor.close()
     
-    async def get_collection_data(self,name):
+    async def get_collection_data(self, name):
+        """
+        Retrieves the collection data from the database based on the provided name.
+
+        Parameters:
+        name (str): The name of the collection.
+
+        Returns:
+        list: A list of dictionaries containing the collection data.
+              If there is an error or no data found, returns an empty list.
+
+        Raises:
+        HTTPException: If there is an error connecting to the database or retrieving the collection data.
+        """
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
             if not e:
-                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+                raise HTTPException(status_code=501, detail="Could not connect to the database. Please try later.")
             else:
-                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again.")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM collection_data WHERE name = %s"
@@ -660,12 +720,12 @@ class DatabaseManager:
             result = cursor.fetchall()
             return result
         except Error as e:
-
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
-
         finally:
             cursor.close()
+
+            
     async def get_approved_transactions(self,buyer_transaction_id):
         """
     Retrieves the approved transactions for a buyer from the database.
@@ -735,7 +795,7 @@ class DatabaseManager:
             return None
         finally:
             cursor.close()
-        return
+        
 
 
     
@@ -769,12 +829,28 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
-            return None
         finally:
             cursor.close()
-        return
+        
     
     async def get_wallet_by_collection(self,user_id,collection_id):
+        """
+    Retrieves the wallet of a user for a specific collection from the database.
+
+    Parameters:
+    user_id (int): The unique identifier of the user.
+    collection_id (str): The name of the collection.
+
+    Returns:
+    List[Dict[str, Union[str, int]]]: A list of dictionaries representing the tokens in the user's wallet for the given collection.
+    Each dictionary contains the following keys:
+        - "trs_id": The unique identifier of the token.
+        - "collection_name": The name of the collection to which the token belongs.
+
+    Raises:
+    HTTPException: If there is an error connecting to the database or retrieving the user's wallet.
+        """
+
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
@@ -796,16 +872,30 @@ class DatabaseManager:
             except Error as e:
                 logger.error(f"Error: {e}")
                 raise HTTPException(status_code=400, detail=str(e))
-                return None
             finally:
                 cursor.close()
        
     async def get_mint_address(self,collection_name):
+        """
+            Retrieves the mint address of a collection from the database.
+
+            Parameters:
+                - collection_name (str): The name of the collection for which to retrieve the mint address.
+
+            Returns:
+            List[Dict[str, str]]: A list of dictionaries representing the mint address of the collection.
+            Each dictionary contains the following key:
+                - "mint_address": The mint address of the collection.
+
+            Raises:
+            HTTPException: If there is an error connecting to the database or retrieving the mint address.
+            """#+
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
             if not e:
                 raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+
             else:
                 raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
         else:
@@ -819,11 +909,11 @@ class DatabaseManager:
             except Error as e:
                 logger.error(f"Error: {e}")
                 raise HTTPException(status_code=400, detail=str(e))
-                
+
                 return None
             finally:
                 cursor.close()
-        return 
+        return
     
     
     async def get_creator(self,collection_name):
@@ -1275,14 +1365,23 @@ class DatabaseManager:
                 cursor.close()
                     
     
-    async def check_collection_exists(self,name):
+    async def check_collection_exists(self, name):
+        """
+        Check if a collection with the given name exists in the database.
+
+        Parameters:
+        name (str): The name of the collection to check.
+
+        Returns:
+        bool: True if the collection exists, False otherwise.
+        """
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
             if not e:
-                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+                raise HTTPException(status_code=501, detail="Could not connect to the database. Please try later.")
             else:
-                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again.")
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)
@@ -1291,20 +1390,18 @@ class DatabaseManager:
                 cursor.execute(query, (name,))
                 results = cursor.fetchall()
                 if len(results) == 0:
-                    logger.info(f"Collection {name} does not exist. ")
+                    logger.info(f"Collection {name} does not exist.")
                     return False
                 else:
-                    logger.info(f"Collection {name} does not exist. ")
+                    logger.info(f"Collection {name} exists.")
                     return True
-
-                
-               
             except Error as e:
                 logger.error(f"Error: {e}")
                 raise HTTPException(status_code=400, detail=str(e))
-
             finally: 
                 cursor.close()
+
+                
     async def add_trs_creation_request(self,model_name,title,description,creator_email, file_url_header):
         """
     Submits a new TRS creation request to the database.
@@ -1344,15 +1441,26 @@ class DatabaseManager:
         finally:
             cursor.close()
 
-    async def get_trs_creation_requests(self,status):
-        
+    async def get_trs_creation_requests(self, status):
+        """
+        Fetches TRS creation requests from the database based on the given status.
+
+        Parameters:
+        status (str): The status of the TRS creation requests to fetch.
+
+        Returns:
+        result (list): A list of dictionaries, where each dictionary represents a TRS creation request.
+
+        Raises:
+        HTTPException: If there is an error connecting to the database or executing the query.
+        """
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
             if not e:
-                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+                raise HTTPException(status_code=501, detail="Could not connect to the database. Please try later.")
             else:
-                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again.")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM trs_creation_requests WHERE status = %s"
@@ -1360,22 +1468,33 @@ class DatabaseManager:
             result = cursor.fetchall()
             return result
         except Error as e:
-            
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
-            
+
         finally:
             cursor.close()
     
     
-    async def get_trs_creation_data(self,id):
+    async def get_trs_creation_data(self, id):
+        """
+        Fetches TRS creation data from the database based on the given ID.
+
+        Parameters:
+        id (int): The ID of the TRS creation request to fetch.
+
+        Returns:
+        result (list): A list of dictionaries, where each dictionary represents a TRS creation request.
+
+        Raises:
+        HTTPException: If there is an error connecting to the database or executing the query.
+        """
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
             if not e:
-                raise HTTPException(status_code = 501, detail = "Could not connect to the database. Please try later. ")
+                raise HTTPException(status_code=501, detail="Could not connect to the database. Please try later.")
             else:
-                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again. ")
+                raise HTTPException(status_code=502, detail="Your request couldn't be processed, please try again.")
         try:
             cursor = self.connection.cursor(dictionary=True)
             query = "SELECT * FROM trs_creation_requests WHERE id = %s"
@@ -1383,14 +1502,29 @@ class DatabaseManager:
             result = cursor.fetchall()
             return result
         except Error as e:
-            
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
-            
+
         finally:
             cursor.close()
 
-    async def add_collection_data(self,name,creator,description,number,url_header):
+    async def add_collection_data(self, name, creator, description, number, url_header):
+        """
+        Adds collection data to the database.
+
+        Parameters:
+        - name (str): The name of the collection.
+        - creator (str): The creator of the collection.
+        - description (str): The description of the collection.
+        - number (int): The number of TRS in the collection.
+        - url_header (str): The URL of the header image for the collection.
+
+        Returns:
+        None
+
+        Raises:
+        HTTPException: If there is an error connecting to the database or executing the query.
+        """
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
@@ -1405,8 +1539,8 @@ class DatabaseManager:
                 cid = storage.get_file_cid(f'{url_header}thumbnail.png')
                 image_uri = 'https://ipfs.filebase.io/ipfs/' + str(cid)
                 query = "INSERT INTO collection_data (name,creator, description, number, image_uri) VALUES (%s, %s, %s,%s,%s)"
-                
-                values = (name,creator,description,number,image_uri)
+
+                values = (name, creator, description, number, image_uri)
                 cursor.execute(query, values)
                 self.connection.commit()
                 logger.info(f"Collection data has been added for {name} . ")
@@ -1417,8 +1551,24 @@ class DatabaseManager:
                 cursor.close()
                 
         
-    async def approve_trs_creation_request(self,id,creator_email,number,mint_address,collection_name,token_account_address):
+    async def approve_trs_creation_request(self, id, creator_email, number, mint_address, collection_name, token_account_address):
+        """
+        Approves a TRS creation request and finalizes the creation process.
 
+        Parameters:
+        - id (int): The unique identifier of the TRS creation request.
+        - creator_email (str): The email of the creator of the TRS.
+        - number (int): The number of TRS to be created.
+        - mint_address (str): The mint address for the TRS.
+        - collection_name (str): The name of the collection.
+        - token_account_address (str): The token account address for the TRS.
+
+        Returns:
+        None
+
+        Raises:
+        HTTPException: If there is an error connecting to the database or executing the query.
+        """
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
@@ -1429,19 +1579,18 @@ class DatabaseManager:
         else:
             try: 
                 cursor = self.connection.cursor(dictionary=True)
-                q1 = "select * from trs_creation_requests where id = %s"
                 query = "UPDATE trs_creation_requests set status = 'approved' WHERE id = %s"
                 cursor.execute(query,(id,))
                 logger.info(f"Approved TRS creation request {id}")
                 creation_data = await self.get_trs_creation_data(id)
                 logger.info(creation_data)
                 creation_data = creation_data[0]
-                await self.add_collection_data(creation_data['title'],creator_email,creation_data['description'],number,creation_data['file_url_header'])
+                await self.add_collection_data(creation_data['title'], creator_email, creation_data['description'], number, creation_data['file_url_header'])
                 creator_id = await self.get_user_by_email(creator_email)
                 creator_id = creator_id['user_id']
-                await self.add_trs(number,mint_address,collection_name,token_account_address,creator_id)
+                await self.add_trs(number, mint_address, collection_name, token_account_address, creator_id)
                 logger.info(f"Finalized TRS Creation request. {id} from {creator_email}")
-                
+
                 self.connection.commit()
             except Error as e:
                 logger.error(f"Error: {e}")
@@ -1452,6 +1601,48 @@ class DatabaseManager:
    
                 
     async def trade_create(self,trade_id, cost, number, collection_name,buyer_id):
+        """
+    Creates a new trade by processing transaction data across multiple tables: marketplace, trs, trades, and transactions.
+
+    Parameters:
+    - trade_id (str): Unique identifier for the trade.
+    - cost (float): Cost per item for the trade.
+    - number (int): The number of items to trade.
+    - collection_name (str): The name of the collection being traded.
+    - buyer_id (int): The ID of the buyer initiating the trade.
+
+    Workflow:
+    1. **Marketplace Validation**:
+        - Retrieves available items (trs) from the `marketplace` table that match the `collection_name` and `cost`.
+        - Ensures that enough trs items are available for the trade (raises a `ValueError` if not).
+    
+    2. **TRS Validation**:
+        - Retrieves trs items from the `trs` table that are not currently in trade (`in_trade = 0`).
+        - Ensures that the required number of trs items is available (raises a `ValueError` if not).
+        - Updates the `trs` table to mark these items as being in trade.
+
+    3. **Create Trades**:
+        - Inserts new records into the `trades` table for each trs item, associating the trade with the buyer and seller.
+        - Sets the initial status of the trade to 'initiated'.
+
+    4. **Create Transactions**:
+        - Groups selected trs items by seller and inserts a record into the `transactions` table for each seller, representing the trade.
+        - Sets the initial status of the transaction to 'initiated'.
+    
+    Database Operations:
+    - The method interacts with multiple tables:
+      - `marketplace` (to fetch available trs items).
+      - `trs` (to mark trs as in trade).
+      - `trades` (to create new trade entries).
+      - `transactions` (to create new transaction entries for the trade).
+    
+    Raises:
+    - `ValueError`: If the number of trs items available in the `marketplace` or `trs` table is insufficient.
+    - `HTTPException`: Raised if a database connection error occurs or if a general SQL error is encountered.
+
+    Returns:
+    - None: The function commits changes to the database and does not return any values directly.
+        """
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
@@ -1480,7 +1671,7 @@ class DatabaseManager:
                 FROM trs 
                 WHERE trs_id IN (%s) AND in_trade = 0
                 """ % ','.join(['%s'] * len(trs_ids))
-                
+
                 cursor.execute(trs_query, trs_ids)
                 available_trs = cursor.fetchall()
                 if len(available_trs) < number:
@@ -1519,7 +1710,7 @@ class DatabaseManager:
                     for seller_id in sellers
                 ]
                 cursor.executemany(transaction_insert_query, transaction_values)
-                
+
                 # Commit changes to the database
                 self.connection.commit()
                 logger.info(f"Transaction for collection {collection_name} and buyer {buyer_id} processed successfully.")
@@ -1533,6 +1724,52 @@ class DatabaseManager:
                 cursor.close()
 
     async def execute_trade(self, trade_id):
+        """
+    Executes a trade by completing all necessary database operations for transferring ownership
+    and updating trade and transaction statuses.
+
+    Parameters:
+    - trade_id (str): The unique identifier for the trade to be executed.
+
+    Workflow:
+    1. **Fetch TRS IDs**:
+        - Retrieves all `trs_id`s associated with the given `trade_id` from the `trades` table.
+    
+    2. **Update Trade Status**:
+        - Updates the status of all related trades to 'completed' in the `trades` table.
+
+    3. **Fetch Transactions**:
+        - Retrieves all transactions linked to the `trade_id` from the `transactions` table.
+        - Changes the status of these transactions to 'approved'.
+
+    4. **Transfer Ownership**:
+        - Updates the `trs` table to change the ownership of each `trs_id` from the `seller_id` to the `buyer_id`.
+    
+    5. **Finalize Transactions**:
+        - Changes the status of the transactions to 'finished' after ownership transfer is completed.
+
+    6. **Update TRS In-Trade Status**:
+        - Sets the `in_trade` status of all involved `trs_id`s to 0 (not in trade).
+        - Removes them from the `marketplace` table to finalize the trade.
+
+    7. **Prepare Response**:
+        - Gathers and returns a response list that includes the transaction details, seller information, and buyer details.
+    
+    Returns:
+    - List[dict]: A list of dictionaries containing the transaction details for each seller, including:
+      - `seller_id`, `seller_email`, `number` (quantity), `cost`, `collection_name`, `buyer_id`, `buyer_email`, and `creator_email`.
+
+    Raises:
+    - `HTTPException`: If a connection or SQL error occurs during the process, an HTTP error is raised.
+    
+    Database Operations:
+    - Interacts with the following tables:
+      - `trades`: To update trade statuses.
+      - `transactions`: To fetch and update transaction details.
+      - `trs`: To transfer ownership of assets and reset their trade status.
+      - `marketplace`: To remove completed trades from the marketplace.
+
+        """
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
@@ -1649,6 +1886,18 @@ class DatabaseManager:
                 cursor.close()
 
     async def get_token_account_address(self, collection_name):
+        """
+        Retrieves the token account address associated with a specific collection from the database.
+
+        Parameters:
+        - collection_name (str): The name of the collection for which the token account address needs to be fetched.
+
+        Returns:
+        - token_account_address (str): The token account address associated with the specified collection.
+
+        Raises:
+        - HTTPException: If there is an issue with the database connection or if a general SQL error occurs.
+        """
         if not self.connection:
             logger.critical("No database connection")
             e = await self.attempt_connection()
@@ -1665,7 +1914,7 @@ class DatabaseManager:
                 result = cursor.fetchall()
                 token_account_address = result[0]["token_account_address"]
                 return token_account_address
-                
+
             except Error as e:
                 logger.error(f"Error: {e}")
                 raise HTTPException(status_code=400, detail=str(e))

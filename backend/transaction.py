@@ -24,17 +24,19 @@ central_wallet = Pubkey.from_string(os.getenv('CENTRAL_WALLET_PUBKEY'))
 central_wallet_keypair = Keypair.from_bytes(json.loads(os.getenv('CENTRAL_WALLET_KEY').encode()))
 
 
+
 async def get_token_account_address(mint_address):
     """
-    Asynchronously retrieves the token account address for a given mint address.
+Asynchronously retrieves the token account address for a given mint address.
 
-    Parameters:
-    mint_address (Pubkey): The public key of the mint for which the token account address is to be retrieved.
+Parameters:
+mint_address (Pubkey): The mint address for which the token account address needs to be retrieved.
 
-    Returns:
-    Pubkey: The public key of the token account associated with the given mint address.
+Returns:
+token_account_address (Pubkey): The token account address associated with the given mint address.
 
-    This function uses the Solana Python SDK to interact with the Solana blockchain. It first creates a TokenAccountOpts object with the provided mint address. Then, it calls the get_token_accounts_by_owner method of the AsyncClient to retrieve the token accounts associated with the central wallet and the specified mint. The function extracts the public key of the first token account from the response and returns it.
+Raises:
+Exception: If any error occurs during the retrieval process.
     """
     try:
         opts = TokenAccountOpts(mint=mint_address)
@@ -46,8 +48,9 @@ async def get_token_account_address(mint_address):
         print(token_account_address)
         return token_account_address
     except Exception as e:
-        
+
         print(f"Error: {e}")
+        
 class TransactionCreator:
     def __init__(self, token_account_address):
         self.token_account_address = token_account_address
@@ -81,38 +84,68 @@ class TransactionCreator:
         memo = f"txn={txn_number},items={trs_count},buyer_uuid={buyer_uuid},seller_uuid={seller_uuid}"
         logger.info(f"Created memo {memo}")
         return memo
-          
-    async def send_transaction(self,txn_number,seller_email,buyer_email,trs_count,seller_uuid,buyer_uuid):
+
+    async def update_metadata(self, old_owner, new_owner):
+        return
+    async def send_transaction(self, txn_number, seller_email, buyer_email, trs_count, seller_uuid, buyer_uuid):
+        """
+        Sends a transaction to the Solana network. The transaction includes a memo and a token transfer.
+
+        Parameters:
+        txn_number (str): PayPal transaction number.
+        seller_email (str): Seller's email address.
+        buyer_email (str): Buyer's email address.
+        trs_count (int): Number of TRS (items).
+        seller_uuid (str): UUID for the seller.
+        buyer_uuid (str): UUID for the buyer.
+
+        Returns:
+        None. The function sends a transaction to the Solana network and logs the transaction hash.
+        """
         txn = Transaction()
-        
         memo_params = MemoParams(
-            program_id = MEMO_PROGRAM_ID,
-            message= await self.generate_memo(txn_number,seller_email,buyer_email,trs_count,seller_uuid,buyer_uuid),
-            signer = central_wallet,
+            program_id=MEMO_PROGRAM_ID,
+            message=await self.generate_memo(txn_number, seller_email, buyer_email, trs_count, seller_uuid, buyer_uuid),
+            signer=central_wallet,
         )
         memo = create_memo(memo_params)
         txn.add(memo)
         transferparams = TransferParams(
             program_id=Pubkey.from_string('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
-            source = self.token_account_address,
-            dest = self.token_account_address,
-            owner = central_wallet,
-            amount = 1,
-            signers = []
+            source=self.token_account_address,
+            dest=self.token_account_address,
+            owner=central_wallet,
+            amount=1,
+            signers=[],
         )
-        txn.add(
-            transfer(transferparams)
-        )
-        response = await client.send_transaction(txn,central_wallet_keypair)
-        
+        txn.add(transfer(transferparams))
+        response = await client.send_transaction(txn, central_wallet_keypair)
         logger.info(F"Transaction hash: {response}")
     
 
 
+
 async def transaction(data):
-    
+    """
+Asynchronously processes a transaction and sends it to the Solana network.
+
+The function creates an instance of TransactionCreator with the provided token account address,
+then calls the send_transaction method of TransactionCreator with the given transaction data.
+
+Parameters:
+data (dict): A dictionary containing the transaction data. The dictionary should have the following keys:
+    - token_account_address (str): The public key of the token account.
+    - transaction_number (str): The PayPal transaction number.
+    - seller_email (str): The seller's email address.
+    - buyer_email (str): The buyer's email address.
+    - trs_count (int): The number of TRS (items).
+    - seller_id (str): The UUID for the seller.
+    - buyer_id (str): The UUID for the buyer.
+
+Returns:
+dict: A dictionary containing a success message.
+    """
     e = TransactionCreator(data['token_account_address'])
-    
     await e.send_transaction(
         data['transaction_number'],
         data['seller_email'],
@@ -123,9 +156,3 @@ async def transaction(data):
     )
     logger.log(f"Created and signed transaction for {data['transaction_number']}")
     return {"message": "Created and signed transaction successfully"}
-    
- 
-
-
-#asyncio.run(main())
-
