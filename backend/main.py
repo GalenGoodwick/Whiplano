@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Query,Depends,Form,status, Request, File, UploadFile
-from backend import database, paypal, utils, storage,mint
+from backend import database, paypal, utils, storage,mint, dac
 from backend import transaction as transaction_module
 from typing import Optional, List
 from solders.pubkey import Pubkey
@@ -436,11 +436,9 @@ async def execute_payment(
     HTTPException: If an error occurs during the payment execution.
     """
     try:
-        
         resp = await paypal.execute_payment(paymentId,PayerID)
         logger.info(f"Executed payment with id {paymentId}")
         await database_client.modify_paypal_transaction(paymentId,'executed')
-
         batch_id = str(uuid.uuid4)
         seller_data = await database_client.execute_trade(paymentId)
         logger.info(f"Trade executed with id {paymentId}")
@@ -468,7 +466,7 @@ async def execute_payment(
             if not token_account_address:
                 token_account_address = 1
             else: 
-                token_account_address = await database_client.get_token_account_address(seller['collection_name'])
+                token_account_address,mint_address = await database_client.get_token_account_address(seller['collection_name'])
             data = {
                 "transaction_number":paymentId,
                 "buyer_id": seller['buyer_id'],
@@ -476,9 +474,10 @@ async def execute_payment(
                 "seller_email": seller['seller_email'],
                 "buyer_email":seller['buyer_email'],
                 "trs_count": seller['number'],
-                'token_account_address':token_account_address
+                'token_account_address':token_account_address,
+                'mint_address':mint_address
             }
-            
+            await dac.transfer(mint_address, seller['seller_email'],seller['buyer_email'],seller['number'])
             await transaction_module.transaction(data)
             logger.info(f"Sent transaction to complete trade {paymentId}")
             
