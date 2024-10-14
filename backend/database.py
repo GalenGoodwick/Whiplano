@@ -1664,7 +1664,8 @@ class DatabaseManager:
                 logger.info(f"Fetched token account address of collection : {collection_name}")
                 result = cursor.fetchall()
                 token_account_address = result[0]["token_account_address"]
-                return token_account_address
+                mint_address = result[0]['mint_address']
+                return token_account_address,mint_address
                 
             except Error as e:
                 logger.error(f"Error: {e}")

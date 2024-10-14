@@ -60,7 +60,14 @@ logging_config = {
             'formatter': 'standard',
             'filename': 'logs/storage.log',
             'level': 'DEBUG',
-        }
+        },
+        'file_dac': {
+            'class': 'logging.FileHandler',
+            'formatter': 'standard',
+            'filename': 'logs/dac.log',
+            'level': 'DEBUG',
+        },
+        
     },
     'loggers': {
         'database': {  # Logger for database operations
@@ -95,6 +102,11 @@ logging_config = {
         },
         'storage':{  # Logger for transaction operations
             'handlers': ['console', 'file_transaction'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'dac':{  # Logger for transaction operations
+            'handlers': ['console', 'file_dac'],
             'level': 'DEBUG',
             'propagate': False,
         },

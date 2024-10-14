@@ -107,7 +107,8 @@ class TransactionCreator:
         
         logger.info(F"Transaction hash: {response}")
     
-
+    async def update_memo(self, seller_email,buyer_email,mint_address):
+        return
 
 async def transaction(data):
     
