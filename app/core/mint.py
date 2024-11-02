@@ -5,34 +5,28 @@ import os
 from PIL import Image
 import time
 import shutil
-from backend.storage import download_file
-from backend.database import DatabaseManager
-from backend.transaction import get_token_account_address
+from app.core.storage import download_file
+from app.core.database import database_client
+from app.core.transaction import get_token_account_address
 import dotenv
 import asyncio
 from solders.pubkey import Pubkey
 dotenv.load_dotenv()
 
-from backend.logging_config import logging_config  # Import the configuration file
+from app.utils.logging_config import logging_config  # Import the configuration file
 import logging.config
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("mint")
 database_password = os.getenv("DATABASE_PASSWORD")
 central_key = os.getenv('CENTRAL_WALLET_PUBKEY')
-database = DatabaseManager(
-    host=os.getenv("DATABASE_HOST"),
-    user=os.getenv("DATABASE_USERNAME"),
-    password=os.getenv("DATABASE_PASSWORD"),
-    database =os.getenv("DATABASE_NAME")
-)
 
-
+database = database_client
 
 def run_mint_script(image_path, metadata_path, name):
     try:
         # Run the JS script with Node.js
         result = subprocess.run(
-            ['node', '/app/backend/mint.js', image_path, metadata_path, name], 
+            ['node', '/app/app/js/mint.js', image_path, metadata_path, name], 
             check=True, 
             capture_output=True,
             text=True

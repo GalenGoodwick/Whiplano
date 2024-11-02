@@ -2,6 +2,7 @@
 from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta,date
 
+
 class SignupRequest(BaseModel):
     username: str
     email: EmailStr

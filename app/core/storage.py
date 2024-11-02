@@ -9,11 +9,9 @@ import boto3
 from botocore.client import Config
 import os
 from dotenv import load_dotenv
-import asyncio
-import io 
-#from backend.logging_config import logging_config  # Import the configuration file
+from app.utils.logging_config import logging_config  # Import the configuration file
 import logging.config
-#logging.config.dictConfig(logging_config)
+logging.config.dictConfig(logging_config)
 logger = logging.getLogger("storage")
 
 load_dotenv()

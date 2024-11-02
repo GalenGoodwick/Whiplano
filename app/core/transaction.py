@@ -15,7 +15,7 @@ dotenv.load_dotenv()
 
 client = AsyncClient("https://api.devnet.solana.com")
 
-from backend.logging_config import logging_config  # Import the configuration file
+from app.utils.logging_config import logging_config  # Import the configuration file
 import logging.config
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("transaction")

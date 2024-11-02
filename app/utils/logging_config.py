@@ -67,7 +67,41 @@ logging_config = {
             'filename': 'logs/dac.log',
             'level': 'DEBUG',
         },
+        'file_authentication': {
+            'class': 'logging.FileHandler',
+            'formatter': 'standard',
+            'filename': 'logs/authentication.log',
+            'level': 'DEBUG',
+        },
         
+        'file_admin': {
+            'class': 'logging.FileHandler',
+            'formatter': 'standard',
+            'filename': 'logs/admin.log',
+            'level': 'DEBUG',
+        },
+        
+        'file_user': {
+            'class': 'logging.FileHandler',
+            'formatter': 'standard',
+            'filename': 'logs/user.log',
+            'level': 'DEBUG',
+        },
+        
+        'file_trs': {
+            'class': 'logging.FileHandler',
+            'formatter': 'standard',
+            'filename': 'logs/trs.log',
+            'level': 'DEBUG',
+        },
+        
+        'file_transactions': {
+            'class': 'logging.FileHandler',
+            'formatter': 'standard',
+            'filename': 'logs/transactions.log',
+            'level': 'DEBUG',
+        },
+       
     },
     'loggers': {
         'database': {  # Logger for database operations
@@ -110,6 +144,37 @@ logging_config = {
             'level': 'DEBUG',
             'propagate': False,
         },
+        
+        'authentication':{  # Logger for transaction operations
+            'handlers': ['console', 'file_authentication'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        
+        'admin':{  # Logger for transaction operations
+            'handlers': ['console', 'file_admin'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        
+        'user':{  # Logger for transaction operations
+            'handlers': ['console', 'file_user'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        
+        'trs':{  # Logger for transaction operations
+            'handlers': ['console', 'file_trs'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        
+        'transactions':{  # Logger for transaction operations
+            'handlers': ['console', 'file_transactions'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+
     }
 }
 

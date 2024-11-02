@@ -18,7 +18,7 @@ dotenv.load_dotenv()
 client = AsyncClient("https://api.devnet.solana.com")
 
 
-from backend.logging_config import logging_config  # Import the configuration file
+from app.utils.logging_config import logging_config  # Import the configuration file
 import logging.config
 logging.config.dictConfig(logging_config)
 logger = logging.getLogger("dac")
@@ -30,7 +30,7 @@ def fetch_metadata_script(mint_address):
     try:
         # Run the JS script with Node.js
         result = subprocess.run(
-            ['node', '/app/backend/fetch_metadata.js', mint_address], 
+            ['node', '/app/app/js/fetch_metadata.js', mint_address], 
             check=True, 
             capture_output=True,
             text=True
@@ -86,7 +86,7 @@ async def upload_metadata(metadata):
     try:
         # Run the JS script with Node.js
         result = subprocess.run(
-            ['node', '/app/backend/upload_metadata.js', metadata_json], 
+            ['node', '/app/app/js/upload_metadata.js', metadata_json], 
             check=True, 
             capture_output=True,
             text=True
@@ -110,7 +110,7 @@ async def update_metadata_uri(mint_address,metadata_uri):
     try:
         # Run the JS script with Node.js
         result = subprocess.run(
-            ['node', '/app/backend/update_metadata.js', mint_address,metadata_uri], 
+            ['node', '/app/app/js/update_metadata.js', mint_address,metadata_uri], 
             check=True, 
             capture_output=True,
             text=True

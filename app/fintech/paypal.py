@@ -7,26 +7,22 @@ import os
 import time
 import requests
 from dotenv import load_dotenv
+load_dotenv()
 from requests.auth import HTTPBasicAuth
 import base64
-from backend.database import DatabaseManager
 import logging
 
 # Initialize logging
-from backend.logging_config import logging_config  # Import the configuration file
 import logging.config
+from app.utils.logging_config import logging_config 
 logging.config.dictConfig(logging_config)
-load_dotenv()
 logger = logging.getLogger("paypal")
+
+
 PAYPAL_API_URL = 'https://api-m.sandbox.paypal.com/v1/payments/payment'
 PAYPAL_CLIENT_ID = os.getenv('PAYPAL_CLIENT_ID')
 PAYPAL_CLIENT_SECRET = os.getenv('PAYPAL_CLIENT_SECRET')
-database_client =DatabaseManager(
-    host=os.getenv("DATABASE_HOST"),
-    user=os.getenv("DATABASE_USERNAME"),
-    password=os.getenv("DATABASE_PASSWORD"),
-    database =os.getenv("DATABASE_NAME")
-)
+
 
 def get_access_token():
     url = "https://api-m.sandbox.paypal.com/v1/oauth2/token"
@@ -49,7 +45,8 @@ class PayPal:
     def __init__(self):
         self.client_id = PAYPAL_CLIENT_ID
         self.client_secret = PAYPAL_CLIENT_SECRET
-
+        self.payout_url = 'https://api.sandbox.paypal.com/v1/payments/payouts'
+        
     async def create_payment(self,amount,return_url,cancel_url,description):
         async with aiohttp.ClientSession() as session:
             auth = aiohttp.BasicAuth(self.client_id, self.client_secret)
@@ -96,10 +93,6 @@ class PayPal:
                 #print(response_data)
                 return response_data
 
-class PayPalPayouts:
-    def __init__(self):
-        
-        self.payout_url = 'https://api.sandbox.paypal.com/v1/payments/payouts'
     
     async def send_payout(self,access_token, sender_batch_id, recipient_email, amount, currency="USD", note="Payout"):
         payout_data = {
@@ -143,7 +136,6 @@ async def verify_transaction(transaction):
 async def create_payment(data):
     paypal = PayPal()
     resp =  await paypal.create_payment(data['amount'], data['return_url'], data['cancel_url'], data['description'])
-    
     return resp
 
 async def execute_payment(payment_id, payer_id):
@@ -152,8 +144,7 @@ async def execute_payment(payment_id, payer_id):
     return resp 
 
 async def payout(data):
-    paypal = PayPalPayouts()
-    
+    paypal = PayPal()
     access_token = get_access_token()
     response = await paypal.send_payout(
         access_token,
@@ -162,7 +153,6 @@ async def payout(data):
         amount=data['amount'],
         currency=data['currency'],
         note=data['note'])
-    
     logger.info(f"Payout sent to {data['recipient_email']}, amount = {data['amount']} ")
     return response
 

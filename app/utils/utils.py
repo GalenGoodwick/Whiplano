@@ -8,14 +8,11 @@ from fastapi import FastAPI, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 import uuid
-from backend import database 
-from backend.models import User, Token, TokenData
-
-
+from app.core.database import database_client
+from app.utils.models import User, Token, TokenData
 import smtplib
 from email.mime.text import MIMEText
 
-# Email credentials
 smtp_server = "smtp.gmail.com"
 port = 465
 email_address = "danielvincent1718@gmail.com"
@@ -24,12 +21,7 @@ SERVER_URL = "https://whiplano-1b8102db6480.herokuapp.com"
 
 load_dotenv()  # Load environment variables
 email_password = os.getenv("GOOGLE_EMAIL_PASSWORD")
-database_client = database.DatabaseManager(
-    host=os.getenv("DATABASE_HOST"),
-    user=os.getenv("DATABASE_USERNAME"),
-    password=os.getenv("DATABASE_PASSWORD"),
-    database =os.getenv("DATABASE_NAME")
-)
+database_client = database_client
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
@@ -282,4 +274,3 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)):
     elif user['role'] == 'user':
         raise authorization_exception
     return User(**user)
-
