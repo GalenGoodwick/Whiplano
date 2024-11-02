@@ -4,4 +4,4 @@
 PORT=${PORT:-8000}  # Default to 8000 if PORT is not set
 
 # Start Uvicorn with the dynamically set port
-/app/venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+/app/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT
