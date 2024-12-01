@@ -41,14 +41,15 @@ class DatabaseManager:
         retries = 3
         for attempt in range(retries):
             try:
-                return await self.pool.acquire()
+                # Use async with to acquire a connection
+                async with self.pool.acquire() as connection:
+                    return connection
             except Error as e:
                 logger.error(f"Error acquiring connection (attempt {attempt + 1}): {e}")
                 if attempt < retries - 1:  # Not the last attempt
                     await asyncio.sleep(2 ** attempt)  # Exponential backoff
                 else:
                     raise HTTPException(status_code=500, detail="Database connection error. Please try again later.")
-
         
     async def login_user(self, user_id=None, email=None):
         async with await self.get_connection() as connection:
