@@ -1,5 +1,3 @@
-import mysql.connector
-from mysql.connector import Error, pooling
 import asyncmy
 import asyncio
 import uuid
@@ -29,6 +27,7 @@ class DatabaseManager:
             maxsize=8
         )
         logger.info("Database object initialized. ")
+        logger.info(type(self.pool))
 
         
     async def get_connection(self):
