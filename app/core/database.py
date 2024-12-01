@@ -19,7 +19,7 @@ class DatabaseManager:
         user=os.getenv("DATABASE_USERNAME")
         password=os.getenv("DATABASE_PASSWORD")
         database =os.getenv("DATABASE_NAME")
-        self.pool = asyncmy.pool.create_pool(
+        self.pool = asyncmy.create_pool(
             host=host,
             user=user,
             password=password,
