@@ -42,7 +42,7 @@ class DatabaseManager:
                 # Use async with to acquire a connection
                 async with self.pool.acquire() as connection:
                     return connection
-            except Exception as e:
+            
             except Exception as e:
                 logger.error(f"Error acquiring connection (attempt {attempt + 1}): {e}")
                 if attempt < retries - 1:  # Not the last attempt
