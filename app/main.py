@@ -4,7 +4,7 @@ import logging
 ROYALTY  = 2.5
 FEES = 2.5
 
-
+from fastapi.middleware.cors import CORSMiddleware
 # Initialize logging
 from app.utils.logging_config import logging_config  # Import the configuration file
 import logging.config
@@ -24,6 +24,7 @@ app = FastAPI(
 )
 whiplano_id = '0000-0000-0000'
 
+app.add_middleware(CORSMiddleware)
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
