@@ -1,0 +1,18 @@
+{
+    "postman.settings.dotenv-detection-notification-visibility": false,
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "previewLimit": 50,
+            "server": "cvktne7b4wbj4ks1.chr7pe7iynqr.eu-west-1.rds.amazonaws.com",
+            "driver": "MySQL",
+            "name": "Whiplano remote",
+            "connectString": "mysql -u iw7jod52a2lwbdv5 -p -h cvktne7b4wbj4ks1.chr7pe7iynqr.eu-west-1.rds.amazonaws.com",
+            "username": "gs5i03j24ykd45lu",
+            "database": "k8ylxcd5jzsodvun"
+        }
+    ]
+}

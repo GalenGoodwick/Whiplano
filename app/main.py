@@ -3,7 +3,7 @@ import os
 import logging
 ROYALTY  = 2.5
 FEES = 2.5
-
+from app.core.database import  database_client
 from fastapi.middleware.cors import CORSMiddleware
 # Initialize logging
 from app.utils.logging_config import logging_config  # Import the configuration file
@@ -52,3 +52,7 @@ async def root():
     logger.info("App is running.")
     current_directory = os.getcwd()
     return {"message": "App is running."}
+
+@app.on_event("startup")
+async def startup_event():
+    await database_client.init_pool()
