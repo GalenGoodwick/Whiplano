@@ -16,7 +16,7 @@ logger = logging.getLogger("database")
 class DatabaseManager:
     def __init__(self):
         self.pool = None
-        
+        logger.info("Database Instance Created Successfully. ")
     async def init_pool(self):
         """Initialize the database connection pool."""
         self.pool = await asyncmy.create_pool(
@@ -27,28 +27,33 @@ class DatabaseManager:
             minsize=1,
             maxsize=10
         )
-        
+        logger.info("Initialized Connection Pool successfully. ")
     async def get_connection(self):
         """
         Acquires a connection from the pool with retry logic.
 
         Returns:
         - Connection object
-        """
-        retries = 3
+        """ 
+        retries = 5
         for attempt in range(retries):
             try:
-                # Use async with to acquire a connection
-                async with self.pool.acquire() as connection:
-                    return connection
-            
+                # Check if the pool is initialized
+                if self.pool is None:
+                    logger.error("Connection pool is not initialized!")
+                    raise HTTPException(status_code=500, detail="Connection pool is not initialized.")
+                logger.debug(type(self.pool))
+                logger.debug(type(self.pool.acquire()))
+                return self.pool.acquire()
+
             except Exception as e:
                 logger.error(f"Error acquiring connection (attempt {attempt + 1}): {e}")
                 if attempt < retries - 1:  # Not the last attempt
                     await asyncio.sleep(2 ** attempt)  # Exponential backoff
                 else:
+                    logger.error("Failed to acquire connection after retries.")
                     raise HTTPException(status_code=500, detail="Database connection error. Please try again later.")
-        
+    
     async def login_user(self, user_id=None, email=None):
         async with await self.get_connection() as connection:
             async with connection.cursor() as cursor:
@@ -108,12 +113,14 @@ class DatabaseManager:
                     if result:
                         columns = [column[0] for column in cursor.description]
                         user = dict(zip(columns, result))
-                        
+                        logger.debug(user)
                     try:
-                        logger.info(f"Fetched user {result['email']}")
+                        logger.info(f"Fetched user {user['email']}")
+                        return user
                     except:
                         logger.info(f"No such user. ")
-                    return user
+                        return None
+                    
                 except Exception as e:
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
@@ -819,7 +826,7 @@ class DatabaseManager:
 
     async def execute_trade(self, trade_id):
         async with await self.get_connection() as connection:
-            async with connection.cursor(dictionary=True) as cursor:
+            async with connection.cursor() as cursor:
                 try: 
                     
                             
@@ -931,7 +938,7 @@ class DatabaseManager:
 
     async def get_token_account_address(self, collection_name):
         async with await self.get_connection() as connection:
-            async with connection.cursor(dictionary=True) as cursor:
+            async with connection.cursor() as cursor:
                 try: 
                     
                     query = "select * from collections where collection_name = %s"
@@ -948,4 +955,4 @@ class DatabaseManager:
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
-database_client = DatabaseManager()
+database_client = DatabaseManager() 
