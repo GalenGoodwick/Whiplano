@@ -7,6 +7,7 @@ from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta,date
 import subprocess
 from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from dotenv import load_dotenv
@@ -37,6 +38,12 @@ app = FastAPI(
         "email": "danielvincent1718@gmail.com",
     }
 )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True, 
+    allow_methods=["*"],     
+    allow_headers=["*"])
 whiplano_id = '0000-0000-0000'
 database_client = database.DatabaseManager(
     host=os.getenv("DATABASE_HOST"),
