@@ -44,6 +44,7 @@ app.add_middleware(
     allow_credentials=True, 
     allow_methods=["*"],     
     allow_headers=["*"])
+
 whiplano_id = '0000-0000-0000'
 database_client = database.DatabaseManager(
     host=os.getenv("DATABASE_HOST"),
@@ -198,7 +199,7 @@ async def submit_kyc(
     }
     
     
-@app.get("/login/google",dependencies = [Depends(get_current_user)],tags=["Authentication"], summary="Returns a url for logging in via Google Auth", description="Returns a url for logging in via Google Auth")
+@app.get("/login/google",tags=["Authentication"], summary="Returns a url for logging in via Google Auth", description="Returns a url for logging in via Google Auth")
 async def login_with_google():
     """
     Redirects the user to the Google OAuth2 authorization page for login.
