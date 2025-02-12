@@ -57,7 +57,6 @@ async def root():
         - message (str): "App is running."
     """
     logger.info("App is running.")
-    current_directory = os.getcwd()
     return {"message": "App is running."}
 
 @app.on_event("startup")

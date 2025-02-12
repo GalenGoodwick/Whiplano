@@ -42,9 +42,8 @@ class DatabaseManager:
                 if self.pool is None:
                     logger.error("Connection pool is not initialized!")
                     raise HTTPException(status_code=500, detail="Connection pool is not initialized.")
-                logger.debug(type(self.pool))
-                logger.debug(type(self.pool.acquire()))
-                return self.pool.acquire()
+                
+                return await self.pool.acquire()
 
             except Exception as e:
                 logger.error(f"Error acquiring connection (attempt {attempt + 1}): {e}")

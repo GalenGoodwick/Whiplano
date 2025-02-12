@@ -9,3 +9,5 @@ mysql.sh
 # Added by cargo
 
 /target
+__pycache__
+.vscode
