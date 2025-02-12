@@ -3,7 +3,7 @@ import os
 import logging
 ROYALTY  = 2.5
 FEES = 2.5
-
+from app.core.database import  database_client
 from fastapi.middleware.cors import CORSMiddleware
 # Initialize logging
 from app.utils.logging_config import logging_config  # Import the configuration file
@@ -24,7 +24,14 @@ app = FastAPI(
 )
 whiplano_id = '0000-0000-0000'
 
-app.add_middleware(CORSMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],  
+    allow_headers=["*"], 
+)
+
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
@@ -50,5 +57,8 @@ async def root():
         - message (str): "App is running."
     """
     logger.info("App is running.")
-    current_directory = os.getcwd()
     return {"message": "App is running."}
+
+@app.on_event("startup")
+async def startup_event():
+    await database_client.init_pool()

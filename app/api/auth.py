@@ -151,7 +151,7 @@ async def submit_kyc(
     }
     
     
-@router.get("/login/google",dependencies = [Depends(get_current_user)],tags=["Authentication"], summary="Returns a url for logging in via Google Auth", description="Returns a url for logging in via Google Auth")
+@router.get("/login/google",tags=["Authentication"], summary="Returns a url for logging in via Google Auth", description="Returns a url for logging in via Google Auth")
 async def login_with_google():
     """
     Redirects the user to the Google OAuth2 authorization page for login.
