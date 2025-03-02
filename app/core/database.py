@@ -1080,7 +1080,8 @@ class DatabaseManager:
                     await connection.rollback()
                     logger.error(f"Error storing user details for {email}: {e}")
                     raise HTTPException(status_code=500, detail="Error storing user details")
-
+                
+    
         
 
 database_client = DatabaseManager() 
