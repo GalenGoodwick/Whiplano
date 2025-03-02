@@ -4,7 +4,6 @@ from datetime import datetime, timedelta,date
 
 
 class SignupRequest(BaseModel):
-    username: str
     email: EmailStr
     password: str
     
@@ -51,6 +50,15 @@ class User(BaseModel):
     username: str
     email: str
     id : str
+    bio :str
+    telegram :str
+    pfp_uri : str
+    twitter : str
+    artisan: bool
+    creator:bool
+    admin:bool
+    verified:bool
+
 
 class Token(BaseModel):
     access_token: str

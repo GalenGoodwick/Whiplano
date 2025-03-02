@@ -118,6 +118,7 @@ def verify_token(token: str) -> dict:
         return {}
 
 
+
 async def authenticate_user(email: str, password: str) -> Union[User, None]:
     """Authenticate a user by verifying their email and password.
 
@@ -136,8 +137,21 @@ async def authenticate_user(email: str, password: str) -> Union[User, None]:
     
     if user and verify_password(password, user["password_hash"]):
         
-        
-        return User(email=user['email'], username=user['username'],id=user['user_id'])
+        user_instance = User(email=user['email'],
+                             username=user["username"],
+                             id=user["user_id"],
+                             last_login=user["last_login"],
+                             verified=user["verified"],
+                             role=user["role"],
+                             kyc=user["kyc"],
+                             artisan=user["artisan"],
+                             creator=user["creator"],
+                             pfp_uri=user["pfp_uri"],
+                             bio=user["bio"],
+                             telegram=user["telegram"],
+                             twitter=user["twitter"],
+                             )
+        return user_instance
     return None
 
 
@@ -173,15 +187,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     if email is None:
         raise credentials_exception
     user = await database_client.get_user_by_email(email)
-    user = {
-        "id":user['user_id'],
-        "username": user['username'],
-        "email": user['email']     
-    }
+    user_instance = User(email=user['email'],
+                             username=user["username"],
+                             id=user["user_id"],
+                             last_login=user["last_login"],
+                             verified=user["verified"],
+                             role=user["role"],
+                             kyc=user["kyc"],
+                             artisan=user["artisan"],
+                             creator=user["creator"],
+                             pfp_uri=user["pfp_uri"],
+                             bio=user["bio"],
+                             telegram=user["telegram"],
+                             twitter=user["twitter"],
+                             )
     if user is None:
 
         raise credentials_exception
-    return User(**user)
+    return user_instance
 
 
 async def get_current_verified_user(token: str = Depends(oauth2_scheme)):
@@ -226,18 +249,26 @@ HTTPException: If the token is invalid, unauthorized, or the user does not exist
     if email is None:
         raise credentials_exception
     user = await database_client.get_user_by_email(email)
-    user = {
-        "id":user['user_id'],
-        "username": user['username'],
-        "email": user['email'],
-        'status':user['status']
-    }
+    user_instance = User(email=user['email'],
+                             username=user["username"],
+                             id=user["user_id"],
+                             last_login=user["last_login"],
+                             verified=user["verified"],
+                             role=user["role"],
+                             kyc=user["kyc"],
+                             artisan=user["artisan"],
+                             creator=user["creator"],
+                             pfp_uri=user["pfp_uri"],
+                             bio=user["bio"],
+                             telegram=user["telegram"],
+                             twitter=user["twitter"],
+                             )
     if user is None:
 
         raise credentials_exception
     elif user['status'] =='not verified':
         raise authorization_exception
-    return User(**user)
+    return user_instance
 
 
 
@@ -263,14 +294,22 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)):
     if email is None:
         raise credentials_exception
     user = await database_client.get_user_by_email(email)
-    user = {
-        "id":user['user_id'],
-        "username": user['username'],
-        "email": user['email'],
-        "role":user['role']
-    }
+    user_instance = User(email=user['email'],
+                             username=user["username"],
+                             id=user["user_id"],
+                             last_login=user["last_login"],
+                             verified=user["verified"],
+                             role=user["role"],
+                             kyc=user["kyc"],
+                             artisan=user["artisan"],
+                             creator=user["creator"],
+                             pfp_uri=user["pfp_uri"],
+                             bio=user["bio"],
+                             telegram=user["telegram"],
+                             twitter=user["twitter"],
+                             )
     if user is None:
         raise credentials_exception
     elif user['role'] == 'user':
         raise authorization_exception
-    return User(**user)
+    return user_instance

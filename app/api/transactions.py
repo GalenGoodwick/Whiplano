@@ -6,8 +6,6 @@ from app.core.database import database_client
 from app.utils.models import User,TradeCreateData
 from app.fintech import paypal
 import uuid
-from app.core import dac, transaction as transaction_module
-
 from decimal import Decimal
 from app.utils.logging_config import logging_config  # Import the configuration file
 import logging.config
@@ -136,8 +134,8 @@ async def execute_payment(
                 'token_account_address':token_account_address,
                 'mint_address':mint_address
             }
-            await dac.transfer(mint_address, seller['seller_email'],seller['buyer_email'],seller['number'])
-            await transaction_module.transaction(data)
+            #await dac.transfer(mint_address, seller['seller_email'],seller['buyer_email'],seller['number'])
+            #await transaction_module.transaction(data)
             logger.info(f"Sent transaction to complete trade {paymentId}")
             
         logger.info(f"Completed Trade with buyer transaction number {paymentId}")

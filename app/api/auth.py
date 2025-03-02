@@ -1,10 +1,10 @@
 
 import requests
 from google.auth.transport import requests as google_requests
-
-from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile, status,Request
+import random
+from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile, status,Request , BackgroundTasks
 from fastapi.responses import RedirectResponse
-
+from datetime import datetime, timedelta
 from app.utils.utils import hash_password, get_current_user, create_auth_token,authenticate_user
 from app.utils.utils import ACCESS_TOKEN_EXPIRE_MINUTES,SERVER_URL
 from app.core.database import database_client
@@ -13,6 +13,15 @@ from datetime import timedelta
 import os
 from google.oauth2 import id_token
 from app.core import storage
+from starlette.responses import JSONResponse
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+from pydantic import EmailStr, BaseModel
+from typing import List
+import random
+from dotenv import load_dotenv
+load_dotenv()  
+
+
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 REDIRECT_URI = SERVER_URL + "/callback/google"  
@@ -23,6 +32,19 @@ logging.config.dictConfig(logging_config)
 logger = logging.getLogger("authentication")
 
 router = APIRouter()
+
+email_conf = conf = ConnectionConfig(
+    MAIL_USERNAME = os.getenv("GOOGLE_MAIL_ID"),
+    MAIL_PASSWORD = os.getenv("GOOGLE_EMAIL_PASSWORD"),
+    MAIL_FROM = os.getenv("GOOGLE_MAIL_ID"),
+    MAIL_PORT = 587,
+    MAIL_SERVER = "smtp.gmail.com",
+    MAIL_FROM_NAME="Whiplano",
+    MAIL_STARTTLS = True,
+    MAIL_SSL_TLS = False,
+    USE_CREDENTIALS = True,
+    VALIDATE_CERTS = True
+)
 
 
 @router.post("/login", response_model=Token,tags=["Authentication"], summary="Logs in the User", description="Used to log in users via email/password")
@@ -55,7 +77,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
     )
     await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "info":{user.model_dump()}}
 
 
 
@@ -91,7 +113,7 @@ async def signup(user: SignupRequest):
     # Hash the password
     hashed_password = hash_password(user.password)
     logger.info("Hashed password")
-    user_id = await database_client.add_user(user.username,user.email,hashed_password)
+    user_id = await database_client.add_user(user.email,hashed_password)
     logger.info("Added user to the database. ")
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -101,55 +123,81 @@ async def signup(user: SignupRequest):
     # Return token
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.post("/verify_user",dependencies = [Depends(get_current_user)],tags=["Authentication"], summary="Checks if user is verified.", description="Checks if user is verified.")
-async def verify_user():
+@router.get("/send_otp",dependencies = [Depends(get_current_user)],tags=["Authentication"], summary="Sends an OTP to the email. ", description="Sends an OTP to the email. ")
+async def send_otp(current_user: User = Depends(get_current_user)):
+    otp = str(random.randint(100000, 999999))
+    expires_at = datetime.utcnow() + timedelta(minutes=5)  # OTP expires in 5 minutes
+    email = current_user.email
+    html = f"""
+<html>
+<head>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }}
+        .container {{
+            max-width: 500px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }}
+        .otp {{
+            font-size: 24px;
+            font-weight: bold;
+            color: #2d89ef;
+            margin: 10px 0;
+        }}
+        .footer {{
+            margin-top: 20px;
+            font-size: 14px;
+            color: #555;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Email Verification Code</h2>
+        <p>Hello,</p>
+        <p>Your One-Time Password (OTP) for email verification on <strong>Whiplano</strong> is:</p>
+        <p class="otp">{otp}</p>
+        <p>This OTP is valid for <strong>5 minutes</strong>. Please do not share it with anyone.</p>
+        <p>If you did not request this, please ignore this email.</p>
+        <p class="footer">Thank you,<br>Whiplano Team</p>
+    </div>
+    <br><br><br> 
+</body>
+</html>
+"""
+    message = MessageSchema(
+        subject="Your One-Time Password (OTP) for Email Verification",
+        recipients=[email],
+        body=html,
+        subtype=MessageType.html
+    )
+    fm = FastMail(conf)
+    await database_client.store_otp(current_user.email,expires_at, otp)
+    await fm.send_message(message)
+@router.post("/recieve_otp",dependencies= [Depends(get_current_user)],tags=["Authentication"],summary="Allows the user to check their otp",description="Recieves an otp from the user, checks it with the one stored in the database, if yes verifies the user")
+async def recieve_otp(entered_otp:int, current_user: User = Depends(get_current_user),):
+    try:
+
+        otp = await database_client.fetch_otp(current_user.email)
+        if (otp == None) or (otp == 0):
+            return "No valid OTP found."
+        else: 
+            if otp == entered_otp:
+                await database_client.verify_user(current_user.email)
+                logger.info(f"Verified user {current_user.email} ")
+    except Exception as e:
+        logger.errror(f"Error verifying user {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     return
 
-
-@router.post("/submit-kyc/", dependencies = [Depends(get_current_user)],tags=["Authentication"],summary = "Takes in all the KYC data, then verifies the user. ")
-async def submit_kyc(
-    current_user: User = Depends(get_current_user),
-    kyc_data: KYCData = Form(...),
-    identity_card: UploadFile = File(...),
-    address_proof: UploadFile = File(...),
-    selfie_with_id: UploadFile = File(...)
-
-):
-    """
-    Submits KYC data and verifies the user.
-
-    This function takes in KYC data, identity card, address proof, and selfie with ID as form data.
-    It uploads the files to a storage service, verifies the user, and returns the submitted KYC data.
-
-    Parameters:
-    current_user (User): The current user. This parameter is obtained from the 'get_current_user' function.
-    kyc_data (KYCData): The KYC data submitted by the user. This parameter is obtained from the form data.
-    identity_card (UploadFile): The identity card uploaded by the user. This parameter is obtained from the form data.
-    address_proof (UploadFile): The address proof uploaded by the user. This parameter is obtained from the form data.
-    selfie_with_id (UploadFile): The selfie with ID uploaded by the user. This parameter is obtained from the form data.
-
-    Returns:
-    dict: A dictionary containing the message, KYC data, and URLs of the uploaded files.
-    """
-    identity_url = await storage.upload_to_s3(identity_card, f"identity_cards/{current_user.id}")
-    utility_url = await storage.upload_to_s3(address_proof, f"address_proof/{current_user.id}")
-    selfie_url = await storage.upload_to_s3(selfie_with_id, f"selfies/{current_user.id}")
-    logger.info(f"Uploaded Identity, Utility, and selfie to Filebase for user {current_user.email}.")
-    await database_client.verify_user(current_user.email)
-    logger.info(f"User {current_user.email} has been verified. ")
-    return {
-        "message": "KYC information submitted successfully",
-        "first_name": kyc_data.first_name,
-        "last_name": kyc_data.last_name,
-        "date_of_birth": kyc_data.date_of_birth,
-        "address": kyc_data.address,
-        "identity_type": kyc_data.identity_type,
-        "identity_card_url": identity_url,
-        "address_proof_type": kyc_data.address_proof_type,
-        "address_proof_url": utility_url,
-        "selfie_with_id_url": selfie_url
-    }
-    
     
 @router.get("/login/google",tags=["Authentication"], summary="Returns a url for logging in via Google Auth", description="Returns a url for logging in via Google Auth")
 async def login_with_google():

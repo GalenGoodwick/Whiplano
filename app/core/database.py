@@ -2,10 +2,12 @@ import asyncmy
 import asyncio
 import uuid
 from fastapi import FastAPI, HTTPException
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.core import storage
 import os 
 import dotenv
+import random
+from datetime import datetime
 dotenv.load_dotenv()
 
 import logging.config
@@ -75,9 +77,10 @@ class DatabaseManager:
             async with connection.cursor() as cursor:
                 try:
                     user_id = str(uuid.uuid4())
-                    query = "INSERT INTO users (user_id,username, email, password_hash) VALUES (%s, %s, %s,%s)"
-                    values = (user_id,username, email, password_hash)
+                    query = "INSERT INTO users (user_id, email, password_hash) VALUES (%s, %s, %s,%s)"
+                    values = (user_id, email, password_hash)
                     await cursor.execute(query, values)
+
                     await connection.commit()
                     logger.info(f"User {username} with id {user_id} added successfully")
                 except Exception as e:
@@ -586,7 +589,7 @@ class DatabaseManager:
             async with connection.cursor() as cursor:
                 try:
                     
-                    query = "UPDATE users set status = 'verified' WHERE email = %s"
+                    query = "UPDATE users set verified = 1' WHERE email = %s"
 
                     await cursor.execute(query, (email,))
                     await connection.commit()
@@ -935,23 +938,75 @@ class DatabaseManager:
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
-    async def get_token_account_address(self, collection_name):
+
+
+
+    async def store_otp(self,email:str,expires : datetime,otp: str):
         async with await self.get_connection() as connection:
             async with connection.cursor() as cursor:
-                try: 
+                try:
                     
-                    query = "select * from collections where collection_name = %s"
-                    await cursor.execute(query,(collection_name,))
-                    logger.info(f"Fetched token account address of collection : {collection_name}")
-                    result1 = await cursor.fetch()
-                    columns = [column[0] for column in cursor.description]
-                    result = [dict(zip(columns, row)) for row in result1]
-                    token_account_address = result[0]["token_account_address"]
-                    mint_address = result[0]['mint_address']
-                    return token_account_address,mint_address
-                    
+                    query = "SELECT COUNT(*) FROM email_otps WHERE email = %s"
+                    result = await connection.fetch(query, (email,))
+                    expires_at_str = expires.strftime('%Y-%m-%d %H:%M:%S')
+
+                    #Checks if there's already an OTP, if there is, it updates it. Else it creates a new one. 
+                    if result[0][0] > 0:  
+                        
+                        update_query = """
+                            UPDATE email_otps 
+                            SET otp = %s, expires_at = %s 
+                            WHERE email = %s
+                        """
+                        await connection.execute(update_query, (otp, expires_at_str, email))
+                    else:
+                        
+                        insert_query = """
+                            INSERT INTO email_otps (email, otp, expires_at) 
+                            VALUES (%s, %s, %s)
+                        """
+                        await connection.execute(insert_query, (email, otp, expires_at_str))
+
+                    await connection.commit()
+                    logger.info(f"OTP for user {email} stored succesfully. ")
+                    return {"message": "OTP stored successfully"}
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
+    
+
+    async def retrieve_otp(self, email: str):
+        async with await self.get_connection() as connection:
+            async with connection.cursor() as cursor:
+                try:
+                    query = """
+                        SELECT otp, expires_at 
+                        FROM email_otps 
+                        WHERE email = %s
+                    """
+                    await cursor.execute(query, (email,))
+                    result = await cursor.fetchone()
+
+                    if not result:
+                        logger.info(f"No OTP found for {email}")
+                        return None
+                        
+
+                    otp, expires_at = result
+                    current_time = datetime.utcnow()
+
+                    if current_time > expires_at:
+                        logger.info(f"OTP expired for {email}")
+                        return 0
+                        
+                    return {"otp": otp, "expires_at": expires_at}
+
+                except Exception as e:
+                    logger.error(f"Error retrieving OTP for {email}: {e}")
+                    raise HTTPException(status_code=500, detail="Error retrieving OTP")
+                
+
+    
 
 database_client = DatabaseManager() 

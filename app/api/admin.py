@@ -1,11 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-
 from app.utils.utils import get_current_user
 from app.core.database import database_client
-from app.core import mint
-from app.core import mint, transaction as transaction_module
-from solders.pubkey import Pubkey
-
 from app.utils.logging_config import logging_config  # Import the configuration file
 import logging.config
 logging.config.dictConfig(logging_config)
@@ -49,7 +44,7 @@ async def admin_approve(id: int):
     exist = await database_client.check_collection_exists(trs_creation_data['title'])
     if exist: 
         raise HTTPException(status_code= 409, detail = "Collection already exists.")   
-    mint_address = await mint.mint(trs_creation_data['title'],trs_creation_data['description'],number,trs_creation_data['creator_email'])
-    token_account_address = await transaction_module.get_token_account_address(Pubkey.from_string(mint_address))
-    await database_client.approve_trs_creation_request(id,trs_creation_data['creator_email'],number,mint_address,trs_creation_data['title'],token_account_address)
+    #mint_address = await mint.mint(trs_creation_data['title'],trs_creation_data['description'],number,trs_creation_data['creator_email'])
+    #token_account_address = await transaction_module.get_token_account_address(Pubkey.from_string(mint_address))
+    await database_client.approve_trs_creation_request(id,trs_creation_data['creator_email'],number,"e",trs_creation_data['title'],"e")
     return {"message":"TRS Succesfully created. "}
