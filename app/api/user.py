@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from pydantic import HttpUrl, Basemodel
+from pydantic import HttpUrl, BaseModel
 from app.utils.utils import get_current_user
 from app.core.database import database_client
 from app.utils.models import User
