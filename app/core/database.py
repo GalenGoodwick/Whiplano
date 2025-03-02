@@ -1042,23 +1042,22 @@ class DatabaseManager:
                     logger.error(f"Error retrieving OTP for {email}: {e}")
                     raise HTTPException(status_code=500, detail="Error retrieving OTP")
     
-    async def store_user_details(email:str, first_name: str, last_name: str, username: str, bio: str, twitter: str, telegram: str, profile_pic_uri: str):
-        
+    async def store_user_details(self,email:str, first_name: str, last_name: str, username: str, bio: str, twitter: str, telegram: str, profile_pic_uri: str):
         async with await self.get_connection() as connection:
             async with connection.cursor() as cursor:
                 try:
 
                     check_user_query = "SELECT email FROM users WHERE email = %s"
-                    await cursor.execute(check_user_query, (user_id,))
+                    await cursor.execute(check_user_query, (email,))
                     user_data = await cursor.fetchone()
 
                     if not user_data:
-                        logger.info(f"User {user_id} does not exist.")
+                        logger.info(f"User {email} does not exist.")
                         raise HTTPException(status_code=404, detail="User not found")
 
                     
                     check_username_query = "SELECT email FROM users WHERE username = %s AND email != %s"
-                    await cursor.execute(check_username_query, (username, user_id))
+                    await cursor.execute(check_username_query, (username, email))
                     existing_user = await cursor.fetchone()
 
                     if existing_user:
@@ -1071,15 +1070,15 @@ class DatabaseManager:
                         SET username = %s, bio = %s, twitter = %s, telegram = %s, pfp_uri = %s, first_name = %s, last_name = %s
                         WHERE email = %s
                     """
-                    await cursor.execute(update_query, (username, bio, twitter, telegram, profile_pic_uri, user_id,first_name,last_name))
+                    await cursor.execute(update_query, (username, bio, twitter, telegram, profile_pic_uri,first_name,last_name))
                     await connection.commit()
                     
-                    logger.info(f"User {user_id} profile updated successfully.")
+                    logger.info(f"User {email} profile updated successfully.")
                     return {"message": "User details updated successfully"}
 
                 except Exception as e:
                     await connection.rollback()
-                    logger.error(f"Error storing user details for {user_id}: {e}")
+                    logger.error(f"Error storing user details for {email}: {e}")
                     raise HTTPException(status_code=500, detail="Error storing user details")
 
         
