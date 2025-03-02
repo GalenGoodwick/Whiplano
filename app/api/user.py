@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from pydantic import HttpUrl, Basemodel
 from app.utils.utils import get_current_user
 from app.core.database import database_client
 from app.utils.models import User
-
-
+from typing import Optional 
+from app.core.aws import upload_to_aws
 from app.utils.logging_config import logging_config  # Import the configuration file
 import logging.config
 logging.config.dictConfig(logging_config)
@@ -121,6 +121,31 @@ async def artisan_deactivate(collection_name: str, number: int, user: User = Dep
         logger.error("Error in deactivating artisan rights for trs. ", e)
         raise HTTPException(status_code = 500, detail = e)
     
-@router.post('/user/onboard',dependencies=[Depends(get_current_user)],tags=["User"],summary="Allows the user to add more details into their profile. ",description="Allows the user to add more details such as profile pic, Bio, Social links, etc into their profile. ")
-async def onboard(ProfilePic: UploadFile = File(...),current_user: User = Depends(get_current_user)):
-    return
+@router.post(
+    "/user/onboard",
+    dependencies=[Depends(get_current_user)],
+    tags=["User"],
+    summary="Allows the user to add more details into their profile.",
+    description="Allows the user to add more details such as profile pic, bio, social links, etc., into their profile.",
+)
+async def onboard_data(
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    username: str = Form(...),
+    bio: Optional[str] = Form(None),
+    twitter: Optional[HttpUrl] = Form(None),
+    telegram: Optional[HttpUrl] = Form(None),
+    profile_pic: UploadFile = File(...),
+    current_user:User = Depends(get_current_user)
+):
+    profile_pic_uri = upload_to_aws(profile_pic)
+    await database_client.store_user_details(current_user.email,first_name,last_name,username,bio,twitter,telegram,profile_pic_uri)
+    return {
+        "first_name": first_name,
+        "last_name": last_name,
+        "username": username,
+        "bio": bio,
+        "twitter": twitter,
+        "telegram": telegram,
+        "profile_pic_filename": profile_pic.filename
+    }

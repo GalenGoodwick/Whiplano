@@ -4,19 +4,16 @@ import os
 from botocore.exceptions import NoCredentialsError
 from dotenv import load_dotenv
 
-# Load environment variables (Optional, if you use .env file)
+import mimetypes
+
 load_dotenv()
 
-# AWS Credentials & S3 Bucket Configuration
 AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY") 
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
 AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME") 
-AWS_REGION = os.getenv("AWS_REGION") #"us-east-1" # Change based on your AWS region
+AWS_REGION = os.getenv("AWS_REGION") 
 
-# Initialize FastAPI App
-app = FastAPI()
 
-# Initialize S3 Client
 s3 = boto3.client(
     "s3",
     aws_access_key_id=AWS_ACCESS_KEY,
@@ -25,25 +22,19 @@ s3 = boto3.client(
 )
 
 
-import mimetypes
-
-async def upload_to_s3(file: UploadFile):
+async def upload_to_aws(file: UploadFile):
     """Uploads a file to AWS S3 and ensures it displays correctly in the browser."""
     try:
-        # Guess MIME type from file extension
+        
         content_type, _ = mimetypes.guess_type(file.filename)
         if content_type is None:
-            content_type = "application/octet-stream"  # Fallback if MIME type is unknown
-
-        # Upload file to S3 with correct content type
+            content_type = "application/octet-stream"  
         s3.upload_fileobj(
             file.file,
             AWS_BUCKET_NAME,
             file.filename,
-            ExtraArgs={"ContentType": content_type}  # ✅ Set the correct Content-Type
+            ExtraArgs={"ContentType": content_type}  
         )
-
-        # Construct the public file URL
         file_url = f"https://{AWS_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{file.filename}"
         return file_url
 

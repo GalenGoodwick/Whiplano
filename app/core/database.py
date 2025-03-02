@@ -84,6 +84,7 @@ class DatabaseManager:
                     await connection.commit()
                     logger.info(f"User {username} with id {user_id} added successfully")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -101,6 +102,7 @@ class DatabaseManager:
                     else:
                         return None
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -124,6 +126,7 @@ class DatabaseManager:
                         return None
                     
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
             
@@ -151,6 +154,7 @@ class DatabaseManager:
                     await connection.commit()
                     logger.info("User updated successfully")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -164,6 +168,7 @@ class DatabaseManager:
                     await connection.commit()
                     logger.info(f"User {user_id} deleted successfully")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -178,6 +183,7 @@ class DatabaseManager:
                     await connection.commit()
                     logger.info(f"Tokens added succesfully. ")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
         
@@ -196,6 +202,7 @@ class DatabaseManager:
                     else:
                         return None
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
             
@@ -212,6 +219,7 @@ class DatabaseManager:
                     logger.info(f"Transaction {transaction_number} and buyer transaction number {buyer_transaction_number} added successfully")
                     
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
             
@@ -226,6 +234,7 @@ class DatabaseManager:
                     await connection.commit()
                     logger.info(f"Transaction {transaction_number} modified successfully to {status}")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
     async def transfer_asset(self, user_id, trs_id):
@@ -238,6 +247,7 @@ class DatabaseManager:
                     await cursor.execute(query, (user_id, trs_id))
                     logger.info(f"Transferred TRS {trs_id} to {user_id}.")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
     
@@ -260,6 +270,7 @@ class DatabaseManager:
                     await self.add_asset(trs_id_values)       
                     logger.info(f"Added {number} tokens of collection name {collection_name} to {creator_id}.")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -275,6 +286,7 @@ class DatabaseManager:
                     await connection.commit()
                     logger.info(f"Added PayPal transaction with transaction number {transaction_number}")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error adding paypal transaction: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
             
@@ -289,6 +301,7 @@ class DatabaseManager:
                     await connection.commit()
                     logger.info(f"Updated paypal transaction {transaction_id} to {status} ")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error updating paypal transaction : {e}")
                     raise HTTPException(status_code=400, detail=str(e))
     async def get_wallet(self, user_id):
@@ -308,6 +321,7 @@ class DatabaseManager:
                         logger.info(f"Returned wallet of user {user_id}")
                         return result
                     except Exception as e:
+                        await connection.rollback()
                         logger.error(f"Error: {e}")
                         raise HTTPException(status_code=400, detail=str(e))
     
@@ -323,7 +337,7 @@ class DatabaseManager:
                     result = [dict(zip(columns, row)) for row in result1]
                     return result
                 except Exception as e:
-
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -340,6 +354,7 @@ class DatabaseManager:
                     logger.info(f"Retrieved approved transactions for buyer {buyer_transaction_id}")
                     return result
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
         
@@ -358,6 +373,7 @@ class DatabaseManager:
                     return True
                     
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -375,6 +391,7 @@ class DatabaseManager:
                     await connection.commit()
                     return True
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
     
@@ -395,6 +412,7 @@ class DatabaseManager:
                         logger.info(f"Selected wallet by collection {collection_id}, from {user_id}")
                         return result
                     except Exception as e:
+                        await connection.rollback()
                         logger.error(f"Error: {e}")
                         raise HTTPException(status_code=400, detail=str(e))
             
@@ -412,6 +430,7 @@ class DatabaseManager:
                     logger.info(f"Retrieved Mint Address by collection {collection_name}")
                     return result
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
                 
@@ -430,7 +449,9 @@ class DatabaseManager:
                     result = [dict(zip(columns, row)) for row in result1]
                     logger.info(f"Retrieved Creator id of collection {collection_name}")
                     return result['creator_id']
+                
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
         
@@ -472,6 +493,7 @@ class DatabaseManager:
                             "trs": none_trs
                         }
                     except Exception as e:
+                        await connection.rollback()
                         logger.error(f"Error: {e}")
                         raise HTTPException(status_code=400, detail=str(e))
     async def add_trs_to_marketplace(self,user_id,values,values2, collection_name):
@@ -494,6 +516,7 @@ class DatabaseManager:
 
 
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -519,6 +542,7 @@ class DatabaseManager:
 
 
                     except Exception as e:
+                        await connection.rollback()
                         logger.error(f"Error: {e}")
                         raise HTTPException(status_code=400, detail=str(e))
 
@@ -545,6 +569,7 @@ class DatabaseManager:
 
 
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -564,6 +589,7 @@ class DatabaseManager:
                     logger.info(f"Marketplace for collection {collection_name} fetched successfully. ")
                     return results
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
                 
@@ -581,6 +607,7 @@ class DatabaseManager:
                     logger.info(f"User {email} added to the admin list. ")
 
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
     
@@ -597,6 +624,7 @@ class DatabaseManager:
                     logger.info(f"User {email} has been verified. ")
 
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -619,6 +647,7 @@ class DatabaseManager:
 
 
                     except Exception as e:
+                        await connection.rollback()
                         logger.error(f"Error: {e}")
                         raise HTTPException(status_code=400, detail=str(e))
 
@@ -640,6 +669,7 @@ class DatabaseManager:
 
 
                     except Exception as e:
+                        await connection.rollback()
                         logger.error(f"Error: {e}")
                         raise HTTPException(status_code=400, detail=str(e))
             
@@ -659,6 +689,7 @@ class DatabaseManager:
                         logger.info(f"Collection {name} does not exist. ")
                         return True
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
                 
@@ -672,6 +703,7 @@ class DatabaseManager:
                     await connection.commit()
                     logger.info(f"New TRS request submitted from {creator_email} with title {title}.")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
     async def get_trs_creation_requests(self,status):
@@ -686,7 +718,7 @@ class DatabaseManager:
                     results = [dict(zip(columns, row)) for row in result1]
                     return results
                 except Exception as e:
-                    
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
     
@@ -703,7 +735,7 @@ class DatabaseManager:
                     results = [dict(zip(columns, row)) for row in results1]
                     return results
                 except Exception as e:
-                    
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
                 
@@ -722,6 +754,7 @@ class DatabaseManager:
                     await connection.commit()
                     logger.info(f"Collection data has been added for {name} . ")
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
                     
@@ -744,6 +777,7 @@ class DatabaseManager:
                     logger.info(f"Finalized TRS Creation request. {id} from {creator_email}")
                     await connection.commit()
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -822,6 +856,7 @@ class DatabaseManager:
 
                     
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error: {e}")
                     raise HTTPException(status_code=400, detail=str(e))
 
@@ -1003,10 +1038,50 @@ class DatabaseManager:
                     return {"otp": otp, "expires_at": expires_at}
 
                 except Exception as e:
+                    await connection.rollback()
                     logger.error(f"Error retrieving OTP for {email}: {e}")
                     raise HTTPException(status_code=500, detail="Error retrieving OTP")
-                
-
     
+    async def store_user_details(email:str, first_name: str, last_name: str, username: str, bio: str, twitter: str, telegram: str, profile_pic_uri: str):
+        
+        async with await self.get_connection() as connection:
+            async with connection.cursor() as cursor:
+                try:
+
+                    check_user_query = "SELECT email FROM users WHERE email = %s"
+                    await cursor.execute(check_user_query, (user_id,))
+                    user_data = await cursor.fetchone()
+
+                    if not user_data:
+                        logger.info(f"User {user_id} does not exist.")
+                        raise HTTPException(status_code=404, detail="User not found")
+
+                    
+                    check_username_query = "SELECT email FROM users WHERE username = %s AND email != %s"
+                    await cursor.execute(check_username_query, (username, user_id))
+                    existing_user = await cursor.fetchone()
+
+                    if existing_user:
+                        logger.info(f"Username '{username}' is already taken.")
+                        raise HTTPException(status_code=400, detail="Username is already taken")
+
+                    # Update user profile details
+                    update_query = """
+                        UPDATE users 
+                        SET username = %s, bio = %s, twitter = %s, telegram = %s, pfp_uri = %s, first_name = %s, last_name = %s
+                        WHERE email = %s
+                    """
+                    await cursor.execute(update_query, (username, bio, twitter, telegram, profile_pic_uri, user_id,first_name,last_name))
+                    await connection.commit()
+                    
+                    logger.info(f"User {user_id} profile updated successfully.")
+                    return {"message": "User details updated successfully"}
+
+                except Exception as e:
+                    await connection.rollback()
+                    logger.error(f"Error storing user details for {user_id}: {e}")
+                    raise HTTPException(status_code=500, detail="Error storing user details")
+
+        
 
 database_client = DatabaseManager() 
