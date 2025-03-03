@@ -5,7 +5,7 @@ import random
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile, status,Request , BackgroundTasks
 from fastapi.responses import RedirectResponse
 from datetime import datetime, timedelta
-from app.utils.utils import hash_password, get_current_user, create_auth_token,authenticate_user
+from app.utils.utils import hash_password, get_current_user, create_auth_token,authenticate_user,create_reset_token,verify_reset_token
 from app.utils.utils import ACCESS_TOKEN_EXPIRE_MINUTES,SERVER_URL
 from app.core.database import database_client
 from app.utils.models import SignupRequest, KYCData,User,Token
@@ -258,3 +258,104 @@ async def google_callback(request: Request):
     await database_client.login_user(email=idinfo['email'])
     logging.info(f"Authenticated user {idinfo['email']} using Google OAuth2")
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/forgot_password",tags=["Authentication"],summary="Sends a link to the email to change the password",description="Takes in a email and sends a forgot password link to that email, allowing the user to change their password if wanted. ")
+async def forgot_password(email:EmailStr):
+    """
+    Takes in an email from the user, if the email is registered, sends an email containing a password reset link for the user, allowing the user to reset their password. 
+    """
+    token = create_reset_token(email)
+    logger.info(f"Created reset token for {email}")
+    user = await database_client.get_user_by_email(email)
+    if user:
+        reset_link = f"app.whiplano.com/forgot_password?resetid={token}"
+        html = f"""
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Password Reset Request</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+            }}
+            .container {{
+                width: 100%;
+                max-width: 600px;
+                margin: 20px auto;
+                background: #ffffff;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                text-align: center;
+            }}
+            h2 {{
+                color: #333333;
+            }}
+            p {{
+                color: #555555;
+                font-size: 16px;
+            }}
+            .btn {{
+                display: inline-block;
+                background-color: #007bff;
+                color: #ffffff;
+                padding: 12px 24px;
+                font-size: 16px;
+                border-radius: 5px;
+                text-decoration: none;
+                margin-top: 20px;
+            }}
+            .footer {{
+                margin-top: 20px;
+                font-size: 14px;
+                color: #777777;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Password Reset Request for Whiplano</h2>
+            <p>We recieved a request from your email to reset your password, click on the button below to reset your password. </p>
+            <a href="{reset_link}" class="btn">Reset Password</a>
+            <p>If you didn't request this, please ignore this email.</p>
+            <p class="footer">This link is valid for only 5 minutes.</p>
+        </div>
+    </body>
+    </html>
+    """
+        message = MessageSchema(
+            subject="Forgot Password Request for Whiplano",
+            recipients=[email],
+            body=html,
+            subtype=MessageType.html
+        )
+        fm = FastMail(conf)
+        await fm.send_message(message)
+        logger.info(f"Send password reset link to {email}")
+
+@router.get("/verify_reset_token",tags=["Authentication"],summary="Returns True if the given token is valid",description="Allows the frontend to verify if a forgot password link is valid or expired.")
+async def verify_token(token:str):
+    email = verify_reset_token
+    if email:
+        return True
+    return False
+
+@router.get("/reset_password",tags=["Authentication"],summary="Allows the user to reset their password",description="Takes in a JWT token, checks if it's valid, if yes, allows the user to set a password. ")
+async def reset_password(token:str,password:str):
+    email = verify_reset_token(token)
+    try:
+        if email: 
+            user = await database_client.get_user_by_email(email)
+            user_id = user['user_id']
+            password_hash = hash_password(password)
+            await database_client.update_user(user_id,password_hash=password_hash)
+            logger.info(f"Updated password for {email}")
+            return True
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(status_code=400,detail=(str(e)))
+    return

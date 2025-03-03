@@ -118,12 +118,12 @@ class DatabaseManager:
                         columns = [column[0] for column in cursor.description]
                         user = dict(zip(columns, result))
                         logger.debug(user)
-                    try:
-                        logger.info(f"Fetched user {user['email']}")
-                        return user
-                    except:
-                        logger.info(f"No such user. ")
-                        return None
+                        try:
+                            logger.info(f"Fetched user {user['email']}")
+                            return user
+                        except:
+                            logger.info(f"No such user. ")
+                            return None
                     
                 except Exception as e:
                     await connection.rollback()
@@ -152,7 +152,7 @@ class DatabaseManager:
                     values.append(user_id)
                     await cursor.execute(query, tuple(values))
                     await connection.commit()
-                    logger.info("User updated successfully")
+                    logger.info(f"User {user_id} updated successfully")
                 except Exception as e:
                     await connection.rollback()
                     logger.error(f"Error: {e}")
