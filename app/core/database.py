@@ -72,7 +72,7 @@ class DatabaseManager:
                 except:
                     logger.error("Failed to update last_login for user. ")
                 
-    async def add_user(self, username, email, password_hash):
+    async def add_user(self,email, password_hash):
         async with await self.get_connection() as connection:
             async with connection.cursor() as cursor:
                 try:
@@ -82,7 +82,7 @@ class DatabaseManager:
                     await cursor.execute(query, values)
 
                     await connection.commit()
-                    logger.info(f"User {username} with id {user_id} added successfully")
+                    logger.info(f"User {email} with id {user_id} added successfully")
                 except Exception as e:
                     await connection.rollback()
                     logger.error(f"Error: {e}")
