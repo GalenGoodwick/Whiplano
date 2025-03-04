@@ -141,16 +141,14 @@ async def authenticate_user(email: str, password: str) -> Union[User, None]:
         user_instance = User(email=user['email'],
                              username=user["username"],
                              id=user["user_id"],
-                             last_login=user["last_login"],
                              verified=user["verified"],
-                             role=user["role"],
-                             kyc=user["kyc"],
                              artisan=user["artisan"],
                              creator=user["creator"],
                              pfp_uri=user["pfp_uri"],
                              bio=user["bio"],
                              telegram=user["telegram"],
                              twitter=user["twitter"],
+                             admin=user["admin"]
                              )
         return user_instance
     return None

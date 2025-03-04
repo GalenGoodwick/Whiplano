@@ -864,9 +864,7 @@ class DatabaseManager:
     async def execute_trade(self, trade_id):
         async with await self.get_connection() as connection:
             async with connection.cursor() as cursor:
-                try: 
-                    
-                            
+                try:                  
                     # Step 1: Fetch all trs for the given trade_id and store trs_ids
                     fetch_trs_query = """
                     SELECT trs_id 
