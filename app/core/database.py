@@ -77,7 +77,7 @@ class DatabaseManager:
             async with connection.cursor() as cursor:
                 try:
                     user_id = str(uuid.uuid4())
-                    query = "INSERT INTO users (user_id, email, password_hash) VALUES (%s, %s, %s,%s)"
+                    query = "INSERT INTO users (user_id, email, password_hash) VALUES (%s, %s, %s)"
                     values = (user_id, email, password_hash)
                     await cursor.execute(query, values)
 
