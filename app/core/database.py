@@ -1094,7 +1094,12 @@ class DatabaseManager:
                     query = "SELECT * FROM USERS WHERE EMAIL = %s"
                     await cursor.execute(query,(email,))
                     result = await cursor.fetchone()
-                    if result['first_name'] and result['last_name'] and result['username']:
+                    if result:
+                        columns = [column[0] for column in cursor.description]
+                        user = dict(zip(columns, result))
+                    
+                    print(result)
+                    if user['first_name'] and user['last_name'] and user['username']:
                         return True
                     return False
 
