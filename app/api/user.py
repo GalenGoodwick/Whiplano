@@ -141,3 +141,8 @@ async def onboard_data(
     profile_pic_uri = upload_to_aws(profile_pic)
     await database_client.store_user_details(current_user.email,first_name,last_name,username,bio,twitter,telegram,profile_pic_uri)
     return "Onboarding details succesfully added."
+
+@router.get('/has_onboarded',dependencies=[Depends(get_current_user)],tags=["User"],summary="Returns True if the user has onboarded",description="If the user has entered the optional details i.e Username, First name and Last name, returns True, otherwise False.")
+async def has_onboarded(current_user:User = Depends(get_current_user)):
+    onboarded = await database_client.has_onboarded(current_user.email)
+    return onboarded 

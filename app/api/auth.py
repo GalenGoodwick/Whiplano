@@ -77,7 +77,9 @@ async def login(email: str = Form(...), password: str = Form(...)):
     )
     await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
-    return {"access_token": access_token, "token_type": "bearer", "info":{user.model_dump()}}
+    user_info_dict = user.model_dump()
+    user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
+    return {"access_token": access_token, "token_type": "bearer", "info":{user_info_dict}}
 
 
 
