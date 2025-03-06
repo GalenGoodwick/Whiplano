@@ -199,6 +199,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
                              bio=user["bio"],
                              telegram=user["telegram"],
                              twitter=user["twitter"],
+                             admin=user["admin"]
                              )
     if user is None:
         raise credentials_exception
