@@ -20,7 +20,7 @@ from typing import List
 import random
 from dotenv import load_dotenv
 load_dotenv()  
-
+from datetime import datetime
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
@@ -79,10 +79,12 @@ async def login(email: str = Form(...), password: str = Form(...)):
     await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
     user_info_dict = user.model_dump()
-    logger.info(user_info_dict)
     user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
-    logger.info(user_info_dict)
-    return {"access_token": access_token, "token_type": "bearer", "info":user_info_dict}
+    for key, value in user_info_dict.items():
+        if isinstance(value, datetime):
+            user_info_dict[key] = value.isoformat()
+    return_dict = {"access_token": access_token, "token_type": "bearer", "info":user_info_dict}
+    return return_dict
 
 
 
