@@ -980,7 +980,7 @@ class DatabaseManager:
                 try:
                     
                     query = "SELECT COUNT(*) FROM email_otps WHERE email = %s"
-                    result = await connection.fetch(query, (email,))
+                    result = await cursor.fetch(query, (email,))
                     expires_at_str = expires.strftime('%Y-%m-%d %H:%M:%S')
 
                     #Checks if there's already an OTP, if there is, it updates it. Else it creates a new one. 
@@ -991,14 +991,14 @@ class DatabaseManager:
                             SET otp = %s, expires_at = %s 
                             WHERE email = %s
                         """
-                        await connection.execute(update_query, (otp, expires_at_str, email))
+                        await cursor.execute(update_query, (otp, expires_at_str, email))
                     else:
                         
                         insert_query = """
                             INSERT INTO email_otps (email, otp, expires_at) 
                             VALUES (%s, %s, %s)
                         """
-                        await connection.execute(insert_query, (email, otp, expires_at_str))
+                        await cursor.execute(insert_query, (email, otp, expires_at_str))
 
                     await connection.commit()
                     logger.info(f"OTP for user {email} stored succesfully. ")
