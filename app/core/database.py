@@ -616,7 +616,7 @@ class DatabaseManager:
             async with connection.cursor() as cursor:
                 try:
                     
-                    query = "UPDATE users set verified = 1' WHERE email = %s"
+                    query = "UPDATE users set verified = 1 WHERE email = %s"
 
                     await cursor.execute(query, (email,))
                     await connection.commit()
