@@ -65,6 +65,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
     HTTPException: If the email or password is incorrect.
     """
     user = await authenticate_user(email, password)
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -78,7 +79,9 @@ async def login(email: str = Form(...), password: str = Form(...)):
     await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
     user_info_dict = user.model_dump()
+    logger.info(user_info_dict)
     user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
+    logger.info(user_info_dict)
     return {"access_token": access_token, "token_type": "bearer", "info":user_info_dict}
 
 
