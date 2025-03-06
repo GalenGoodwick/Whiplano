@@ -224,7 +224,7 @@ async def login_with_google():
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/auth?client_id={GOOGLE_CLIENT_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=openid email")
 
 
-@router.get("/callback/google", response_model = Token)
+@router.get("/callback/google", response_model = LoginToken)
 async def google_callback(request: Request):
     """
     This function handles the callback from Google OAuth2 authorization.
@@ -254,6 +254,7 @@ async def google_callback(request: Request):
         return {"error":"Email not verified."}
     try:
         user = await database_client.get_user_by_email(idinfo['email'])
+
     except Exception as e:
         
         return {"message":"User not registered, signing up by google hasn't been added yet."}
@@ -264,7 +265,12 @@ async def google_callback(request: Request):
     )
     await database_client.login_user(email=idinfo['email'])
     logging.info(f"Authenticated user {idinfo['email']} using Google OAuth2")
-    return {"access_token": access_token, "token_type": "bearer"}
+    user_info_dict = user.model_dump()
+    user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
+    for key, value in user_info_dict.items():
+        if isinstance(value, datetime):
+            user_info_dict[key] = value.isoformat()
+    return {"access_token": access_token, "token_type": "bearer",info:user_info_dict}
 
 
 @router.get("/forgot_password",tags=["Authentication"],summary="Sends a link to the email to change the password",description="Takes in a email and sends a forgot password link to that email, allowing the user to change their password if wanted. ")
