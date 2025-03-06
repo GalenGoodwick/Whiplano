@@ -191,7 +191,7 @@ async def send_otp(current_user: User = Depends(get_current_user)):
 @router.post("/recieve_otp",dependencies= [Depends(get_current_user)],tags=["Authentication"],summary="Allows the user to check their otp",description="Recieves an otp from the user, checks it with the one stored in the database, if yes verifies the user")
 async def recieve_otp(entered_otp:int, current_user: User = Depends(get_current_user),):
     try:
-        otp = await database_client.fetch_otp(current_user.email)
+        otp = await database_client.retrieve_otp(current_user.email)
         if (otp == None) or (otp == 0):
             return {"message": "No valid OTP found."}
         else: 
