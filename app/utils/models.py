@@ -62,7 +62,7 @@ class User(BaseModel):
 class LoginToken(BaseModel):
     access_token: str
     token_type: str
-    user_details : dict
+    info : dict
 
 class Token(BaseModel):
     access_token: str
@@ -70,7 +70,7 @@ class Token(BaseModel):
 class SignupToken(BaseModel):
     access_token: str
     token_type: str
-    user_details : dict
+    info : dict
     is_verified:bool
     has_onboarded:bool
 class TokenData(BaseModel):
