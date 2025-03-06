@@ -986,7 +986,7 @@ class DatabaseManager:
 
                     #Checks if there's already an OTP, if there is, it updates it. Else it creates a new one. 
                     logger.debug(result)
-                    if result[0][0] > 0:  
+                    if result[0] > 0:  
                         
                         update_query = """
                             UPDATE email_otps 
