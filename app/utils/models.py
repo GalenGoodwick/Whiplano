@@ -47,7 +47,7 @@ class Metadata(BaseModel):
     description: str
 
 class User(BaseModel):
-    username: str
+    username: Optional[str] = None
     email: str
     id: str
     bio: Optional[str] = None
