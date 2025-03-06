@@ -193,15 +193,17 @@ async def recieve_otp(entered_otp:int, current_user: User = Depends(get_current_
     try:
         otp = await database_client.fetch_otp(current_user.email)
         if (otp == None) or (otp == 0):
-            return "No valid OTP found."
+            return {"message": "No valid OTP found."}
         else: 
             if otp == entered_otp:
                 await database_client.verify_user(current_user.email)
                 logger.info(f"Verified user {current_user.email} ")
+                return {"message": "User verified successfully."}
+            else:
+                return {"message": "Invalid OTP. Please try again."}
     except Exception as e:
-        logger.errror(f"Error verifying user {e}")
+        logger.error(f"Error verifying user {e}")
         raise HTTPException(status_code=400, detail=str(e))
-    return
 
     
 @router.get("/login/google",tags=["Authentication"], summary="Returns a url for logging in via Google Auth", description="Returns a url for logging in via Google Auth")
