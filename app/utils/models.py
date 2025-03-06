@@ -63,7 +63,10 @@ class LoginToken(BaseModel):
     access_token: str
     token_type: str
     user_details : dict
-    
+
+class LoginToken(BaseModel):
+    access_token: str
+    token_type: str    
 class SignupToken(BaseModel):
     access_token: str
     token_type: str
