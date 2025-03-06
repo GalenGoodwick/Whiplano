@@ -96,7 +96,6 @@ async def signup(user: SignupRequest):
 
     Parameters:
     user (SignupRequest): A Pydantic model containing the necessary data for signup.
-        - username (str): The username of the user.
         - email (str): The email of the user.
         - password (str): The password of the user.
 
