@@ -192,7 +192,8 @@ async def send_otp(current_user: User = Depends(get_current_user)):
 async def recieve_otp(entered_otp:int, current_user: User = Depends(get_current_user),):
     try:
         otp = await database_client.retrieve_otp(current_user.email)
-        otp = int(otp['otp'])
+        if type(otp) == dict:
+            otp = int(otp['otp'])
         if (otp == None) or (otp == 0):
             return {"message": "No valid OTP found."}
         else: 
