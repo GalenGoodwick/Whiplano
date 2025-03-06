@@ -980,7 +980,7 @@ class DatabaseManager:
                 try:
                     
                     query = "SELECT COUNT(*) FROM email_otps WHERE email = %s"
-                    result = await cursor.fetch(query, (email,))
+                    result = await cursor.fetchone(query, (email,))
                     expires_at_str = expires.strftime('%Y-%m-%d %H:%M:%S')
 
                     #Checks if there's already an OTP, if there is, it updates it. Else it creates a new one. 
