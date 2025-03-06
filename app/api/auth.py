@@ -123,7 +123,7 @@ async def signup(user: SignupRequest):
     logger.info(f"User created with email {user.email}")
     await database_client.login_user(user.email)
     # Return token
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer","is_verified":False,"has_onboarded":False}
 
 @router.get("/send_otp",dependencies = [Depends(get_current_user)],tags=["Authentication"], summary="Sends an OTP to the email. ", description="Sends an OTP to the email. ")
 async def send_otp(current_user: User = Depends(get_current_user)):
