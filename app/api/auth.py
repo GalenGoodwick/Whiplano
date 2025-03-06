@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from app.utils.utils import hash_password, get_current_user, create_auth_token,authenticate_user,create_reset_token,verify_reset_token
 from app.utils.utils import ACCESS_TOKEN_EXPIRE_MINUTES,SERVER_URL
 from app.core.database import database_client
-from app.utils.models import SignupRequest, KYCData,User,Token
+from app.utils.models import SignupRequest, KYCData,User,LoginToken, SignupToken
 from datetime import timedelta
 import os
 from google.oauth2 import id_token
