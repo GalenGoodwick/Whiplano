@@ -59,10 +59,16 @@ class User(BaseModel):
     admin: bool
     verified: bool
 
-class Token(BaseModel):
+class LoginToken(BaseModel):
     access_token: str
     token_type: str
     user_details : dict
-
+    
+class SignupToken(BaseModel):
+    access_token: str
+    token_type: str
+    user_details : dict
+    is_verified:bool
+    has_onboarded:bool
 class TokenData(BaseModel):
     username: str

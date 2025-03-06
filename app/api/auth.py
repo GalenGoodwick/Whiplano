@@ -47,7 +47,7 @@ email_conf = conf = ConnectionConfig(
 )
 
 
-@router.post("/login", response_model=Token,tags=["Authentication"], summary="Logs in the User", description="Used to log in users via email/password")
+@router.post("/login", response_model=LoginToken,tags=["Authentication"], summary="Logs in the User", description="Used to log in users via email/password")
 async def login(email: str = Form(...), password: str = Form(...)):
     """
     Authenticates a user using their email and password.
@@ -88,7 +88,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
 
 
 
-@router.post('/signup', response_model=Token,tags=["Authentication"], summary="Signing up of new users", description="Used to add users via email/password")
+@router.post('/signup', response_model=SignupToken,tags=["Authentication"], summary="Signing up of new users", description="Used to add users via email/password")
 async def signup(user: SignupRequest):
     """
     This function handles the signup process for a new user. It checks if the user already exists,
