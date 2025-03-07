@@ -74,9 +74,11 @@ async def login(email: str = Form(...), password: str = Form(...)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    logger.debug("Before creating token")
     access_token = create_auth_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
+    logger.debug("After creating token")
     await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
     user_info_dict = user.model_dump()
