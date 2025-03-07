@@ -79,7 +79,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
         data={"sub": user.email}, expires_delta=access_token_expires
     )
     logger.debug("After creating token")
-    await database_client.login_user(email=user.email)
+    #await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
     user_info_dict = user.model_dump()
     user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
