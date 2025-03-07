@@ -26,8 +26,10 @@ class DatabaseManager:
             user=os.getenv("DATABASE_USERNAME"),
             password=os.getenv("DATABASE_PASSWORD"),
             database=os.getenv("DATABASE_NAME"),
-            minsize=1,
-            maxsize=10
+            minsize=5,
+            maxsize=10,
+            pool_recycle=30, 
+            echo=True
         )
         logger.info("Initialized Connection Pool successfully. ")
     async def get_connection(self):
@@ -72,17 +74,17 @@ class DatabaseManager:
                 except:
                     logger.error("Failed to update last_login for user. ")
                 
-    async def add_user(self, username, email, password_hash):
+    async def add_user(self,email, password_hash):
         async with await self.get_connection() as connection:
             async with connection.cursor() as cursor:
                 try:
                     user_id = str(uuid.uuid4())
-                    query = "INSERT INTO users (user_id, email, password_hash) VALUES (%s, %s, %s,%s)"
+                    query = "INSERT INTO users (user_id, email, password_hash) VALUES (%s, %s, %s)"
                     values = (user_id, email, password_hash)
                     await cursor.execute(query, values)
 
                     await connection.commit()
-                    logger.info(f"User {username} with id {user_id} added successfully")
+                    logger.info(f"User {email} with id {user_id} added successfully")
                 except Exception as e:
                     await connection.rollback()
                     logger.error(f"Error: {e}")
@@ -118,12 +120,12 @@ class DatabaseManager:
                         columns = [column[0] for column in cursor.description]
                         user = dict(zip(columns, result))
                         logger.debug(user)
-                    try:
-                        logger.info(f"Fetched user {user['email']}")
-                        return user
-                    except:
-                        logger.info(f"No such user. ")
-                        return None
+                        try:
+                            logger.info(f"Fetched user {user['email']}")
+                            return user
+                        except:
+                            logger.info(f"No such user. ")
+                            return None
                     
                 except Exception as e:
                     await connection.rollback()
@@ -152,7 +154,7 @@ class DatabaseManager:
                     values.append(user_id)
                     await cursor.execute(query, tuple(values))
                     await connection.commit()
-                    logger.info("User updated successfully")
+                    logger.info(f"User {user_id} updated successfully")
                 except Exception as e:
                     await connection.rollback()
                     logger.error(f"Error: {e}")
@@ -616,7 +618,7 @@ class DatabaseManager:
             async with connection.cursor() as cursor:
                 try:
                     
-                    query = "UPDATE users set verified = 1' WHERE email = %s"
+                    query = "UPDATE users set verified = 1 WHERE email = %s"
 
                     await cursor.execute(query, (email,))
                     await connection.commit()
@@ -864,9 +866,7 @@ class DatabaseManager:
     async def execute_trade(self, trade_id):
         async with await self.get_connection() as connection:
             async with connection.cursor() as cursor:
-                try: 
-                    
-                            
+                try:                  
                     # Step 1: Fetch all trs for the given trade_id and store trs_ids
                     fetch_trs_query = """
                     SELECT trs_id 
@@ -982,25 +982,27 @@ class DatabaseManager:
                 try:
                     
                     query = "SELECT COUNT(*) FROM email_otps WHERE email = %s"
-                    result = await connection.fetch(query, (email,))
+                    await cursor.execute(query,(email,))
+                    result = await cursor.fetchone()
                     expires_at_str = expires.strftime('%Y-%m-%d %H:%M:%S')
 
                     #Checks if there's already an OTP, if there is, it updates it. Else it creates a new one. 
-                    if result[0][0] > 0:  
+                    logger.debug(result)
+                    if result[0] > 0:  
                         
                         update_query = """
                             UPDATE email_otps 
                             SET otp = %s, expires_at = %s 
                             WHERE email = %s
                         """
-                        await connection.execute(update_query, (otp, expires_at_str, email))
+                        await cursor.execute(update_query, (otp, expires_at_str, email))
                     else:
                         
                         insert_query = """
                             INSERT INTO email_otps (email, otp, expires_at) 
                             VALUES (%s, %s, %s)
                         """
-                        await connection.execute(insert_query, (email, otp, expires_at_str))
+                        await cursor.execute(insert_query, (email, otp, expires_at_str))
 
                     await connection.commit()
                     logger.info(f"OTP for user {email} stored succesfully. ")
@@ -1042,23 +1044,22 @@ class DatabaseManager:
                     logger.error(f"Error retrieving OTP for {email}: {e}")
                     raise HTTPException(status_code=500, detail="Error retrieving OTP")
     
-    async def store_user_details(email:str, first_name: str, last_name: str, username: str, bio: str, twitter: str, telegram: str, profile_pic_uri: str):
-        
+    async def store_user_details(self,email:str, first_name: str, last_name: str, username: str, bio: str, twitter: str, telegram: str, profile_pic_uri: str):
         async with await self.get_connection() as connection:
             async with connection.cursor() as cursor:
                 try:
 
                     check_user_query = "SELECT email FROM users WHERE email = %s"
-                    await cursor.execute(check_user_query, (user_id,))
+                    await cursor.execute(check_user_query, (email,))
                     user_data = await cursor.fetchone()
 
                     if not user_data:
-                        logger.info(f"User {user_id} does not exist.")
+                        logger.info(f"User {email} does not exist.")
                         raise HTTPException(status_code=404, detail="User not found")
 
                     
                     check_username_query = "SELECT email FROM users WHERE username = %s AND email != %s"
-                    await cursor.execute(check_username_query, (username, user_id))
+                    await cursor.execute(check_username_query, (username, email))
                     existing_user = await cursor.fetchone()
 
                     if existing_user:
@@ -1071,17 +1072,44 @@ class DatabaseManager:
                         SET username = %s, bio = %s, twitter = %s, telegram = %s, pfp_uri = %s, first_name = %s, last_name = %s
                         WHERE email = %s
                     """
-                    await cursor.execute(update_query, (username, bio, twitter, telegram, profile_pic_uri, user_id,first_name,last_name))
+                    await cursor.execute(update_query, (username, bio, twitter, telegram, profile_pic_uri,first_name,last_name))
                     await connection.commit()
                     
-                    logger.info(f"User {user_id} profile updated successfully.")
+                    logger.info(f"User {email} profile updated successfully.")
                     return {"message": "User details updated successfully"}
 
                 except Exception as e:
                     await connection.rollback()
-                    logger.error(f"Error storing user details for {user_id}: {e}")
+                    logger.error(f"Error storing user details for {email}: {e}")
                     raise HTTPException(status_code=500, detail="Error storing user details")
+                
+    async def has_onboarded(self,email):
+        async with await self.get_connection() as connection:
+            async with connection.cursor() as cursor:
+                try:
+                    check_user_query = "SELECT email FROM users WHERE email = %s"
+                    await cursor.execute(check_user_query, (email,))
+                    user_data = await cursor.fetchone()
 
-        
+                    if not user_data:
+                        logger.info(f"User {email} does not exist.")
+                        raise HTTPException(status_code=404, detail="User not found")
+                    
+                    query = "SELECT * FROM USERS WHERE EMAIL = %s"
+                    await cursor.execute(query,(email,))
+                    result = await cursor.fetchone()
+                    if result:
+                        columns = [column[0] for column in cursor.description]
+                        user = dict(zip(columns, result))
+                    
+                    print(result)
+                    if user['first_name'] and user['last_name'] and user['username']:
+                        return True
+                    return False
+
+                except Exception as e:
+                        await connection.rollback()
+                        logger.error(f"Error fetching user details for {email}: {e}")
+                        raise HTTPException(status_code=500, detail="Error fetching user details")
 
 database_client = DatabaseManager() 

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Union
 import jwt
 import os
+from pydantic import EmailStr, BaseModel
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer
@@ -140,16 +141,14 @@ async def authenticate_user(email: str, password: str) -> Union[User, None]:
         user_instance = User(email=user['email'],
                              username=user["username"],
                              id=user["user_id"],
-                             last_login=user["last_login"],
                              verified=user["verified"],
-                             role=user["role"],
-                             kyc=user["kyc"],
                              artisan=user["artisan"],
                              creator=user["creator"],
                              pfp_uri=user["pfp_uri"],
                              bio=user["bio"],
                              telegram=user["telegram"],
                              twitter=user["twitter"],
+                             admin=user["admin"]
                              )
         return user_instance
     return None
@@ -200,9 +199,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
                              bio=user["bio"],
                              telegram=user["telegram"],
                              twitter=user["twitter"],
+                             admin=user["admin"]
                              )
     if user is None:
-
         raise credentials_exception
     return user_instance
 
@@ -313,3 +312,17 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)):
     elif user['role'] == 'user':
         raise authorization_exception
     return user_instance
+
+
+
+def create_reset_token(email: str):
+    expiry = datetime.utcnow() + timedelta(minutes=15)
+    payload = {"sub": email, "exp": expiry}
+    return jwt.encode(payload, str(SECRET_KEY), algorithm=ALGORITHM)
+
+def verify_reset_token(token: str):
+    try: 
+        payload = jwt.decode(token, str(SECRET_KEY), algorithms=[ALGORITHM])
+        return payload[['sub']]
+    except:
+        None

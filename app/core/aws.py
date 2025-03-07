@@ -43,10 +43,3 @@ async def upload_to_aws(file: UploadFile):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
-@app.post("/upload-file/")
-async def upload_file(file: UploadFile = File(...)):
-    """FastAPI endpoint to upload a file and return the S3 file URL."""
-    file_url = await upload_to_s3(file)
-    return {"message": "File uploaded successfully", "file_url": file_url}

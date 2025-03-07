@@ -5,10 +5,10 @@ import random
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile, status,Request , BackgroundTasks
 from fastapi.responses import RedirectResponse
 from datetime import datetime, timedelta
-from app.utils.utils import hash_password, get_current_user, create_auth_token,authenticate_user
+from app.utils.utils import hash_password, get_current_user, create_auth_token,authenticate_user,create_reset_token,verify_reset_token
 from app.utils.utils import ACCESS_TOKEN_EXPIRE_MINUTES,SERVER_URL
 from app.core.database import database_client
-from app.utils.models import SignupRequest, KYCData,User,Token
+from app.utils.models import SignupRequest, KYCData,User,LoginToken, SignupToken
 from datetime import timedelta
 import os
 from google.oauth2 import id_token
@@ -20,7 +20,7 @@ from typing import List
 import random
 from dotenv import load_dotenv
 load_dotenv()  
-
+from datetime import datetime
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
@@ -47,7 +47,7 @@ email_conf = conf = ConnectionConfig(
 )
 
 
-@router.post("/login", response_model=Token,tags=["Authentication"], summary="Logs in the User", description="Used to log in users via email/password")
+@router.post("/login", response_model=LoginToken,tags=["Authentication"], summary="Logs in the User", description="Used to log in users via email/password")
 async def login(email: str = Form(...), password: str = Form(...)):
     """
     Authenticates a user using their email and password.
@@ -65,6 +65,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
     HTTPException: If the email or password is incorrect.
     """
     user = await authenticate_user(email, password)
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -77,11 +78,17 @@ async def login(email: str = Form(...), password: str = Form(...)):
     )
     await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
-    return {"access_token": access_token, "token_type": "bearer", "info":{user.model_dump()}}
+    user_info_dict = user.model_dump()
+    user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
+    for key, value in user_info_dict.items():
+        if isinstance(value, datetime):
+            user_info_dict[key] = value.isoformat()
+    return_dict = {"access_token": access_token, "token_type": "bearer", "info":user_info_dict}
+    return return_dict
 
 
 
-@router.post('/signup', response_model=Token,tags=["Authentication"], summary="Signing up of new users", description="Used to add users via email/password")
+@router.post('/signup', response_model=SignupToken,tags=["Authentication"], summary="Signing up of new users", description="Used to add users via email/password")
 async def signup(user: SignupRequest):
     """
     This function handles the signup process for a new user. It checks if the user already exists,
@@ -89,7 +96,6 @@ async def signup(user: SignupRequest):
 
     Parameters:
     user (SignupRequest): A Pydantic model containing the necessary data for signup.
-        - username (str): The username of the user.
         - email (str): The email of the user.
         - password (str): The password of the user.
 
@@ -121,7 +127,7 @@ async def signup(user: SignupRequest):
     logger.info(f"User created with email {user.email}")
     await database_client.login_user(user.email)
     # Return token
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer","is_verified":False,"has_onboarded":False}
 
 @router.get("/send_otp",dependencies = [Depends(get_current_user)],tags=["Authentication"], summary="Sends an OTP to the email. ", description="Sends an OTP to the email. ")
 async def send_otp(current_user: User = Depends(get_current_user)):
@@ -185,17 +191,21 @@ async def send_otp(current_user: User = Depends(get_current_user)):
 @router.post("/recieve_otp",dependencies= [Depends(get_current_user)],tags=["Authentication"],summary="Allows the user to check their otp",description="Recieves an otp from the user, checks it with the one stored in the database, if yes verifies the user")
 async def recieve_otp(entered_otp:int, current_user: User = Depends(get_current_user),):
     try:
-        otp = await database_client.fetch_otp(current_user.email)
+        otp = await database_client.retrieve_otp(current_user.email)
+        if type(otp) == dict:
+            otp = int(otp['otp'])
         if (otp == None) or (otp == 0):
-            return "No valid OTP found."
+            return {"message": "No valid OTP found."}
         else: 
             if otp == entered_otp:
                 await database_client.verify_user(current_user.email)
                 logger.info(f"Verified user {current_user.email} ")
+                return {"message": "User verified successfully."}
+            else:
+                return {"message": "Invalid OTP. Please try again."}
     except Exception as e:
-        logger.errror(f"Error verifying user {e}")
+        logger.error(f"Error verifying user {e}")
         raise HTTPException(status_code=400, detail=str(e))
-    return
 
     
 @router.get("/login/google",tags=["Authentication"], summary="Returns a url for logging in via Google Auth", description="Returns a url for logging in via Google Auth")
@@ -217,7 +227,7 @@ async def login_with_google():
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/auth?client_id={GOOGLE_CLIENT_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=openid email")
 
 
-@router.get("/callback/google", response_model = Token)
+@router.get("/callback/google", response_model = LoginToken)
 async def google_callback(request: Request):
     """
     This function handles the callback from Google OAuth2 authorization.
@@ -247,6 +257,7 @@ async def google_callback(request: Request):
         return {"error":"Email not verified."}
     try:
         user = await database_client.get_user_by_email(idinfo['email'])
+
     except Exception as e:
         
         return {"message":"User not registered, signing up by google hasn't been added yet."}
@@ -257,4 +268,110 @@ async def google_callback(request: Request):
     )
     await database_client.login_user(email=idinfo['email'])
     logging.info(f"Authenticated user {idinfo['email']} using Google OAuth2")
-    return {"access_token": access_token, "token_type": "bearer"}
+    user_info_dict = user.model_dump()
+    user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
+    for key, value in user_info_dict.items():
+        if isinstance(value, datetime):
+            user_info_dict[key] = value.isoformat()
+    return {"access_token": access_token, "token_type": "bearer","info":user_info_dict}
+
+
+@router.get("/forgot_password",tags=["Authentication"],summary="Sends a link to the email to change the password",description="Takes in a email and sends a forgot password link to that email, allowing the user to change their password if wanted. ")
+async def forgot_password(email:EmailStr):
+    """
+    Takes in an email from the user, if the email is registered, sends an email containing a password reset link for the user, allowing the user to reset their password. 
+    """
+    token = create_reset_token(email)
+    logger.info(f"Created reset token for {email}")
+    user = await database_client.get_user_by_email(email)
+    if user:
+        reset_link = f"app.whiplano.com/forgot_password?resetid={token}"
+        html = f"""
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Password Reset Request</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+            }}
+            .container {{
+                width: 100%;
+                max-width: 600px;
+                margin: 20px auto;
+                background: #ffffff;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                text-align: center;
+            }}
+            h2 {{
+                color: #333333;
+            }}
+            p {{
+                color: #555555;
+                font-size: 16px;
+            }}
+            .btn {{
+                display: inline-block;
+                background-color: #007bff;
+                color: #ffffff;
+                padding: 12px 24px;
+                font-size: 16px;
+                border-radius: 5px;
+                text-decoration: none;
+                margin-top: 20px;
+            }}
+            .footer {{
+                margin-top: 20px;
+                font-size: 14px;
+                color: #777777;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Password Reset Request for Whiplano</h2>
+            <p>We recieved a request from your email to reset your password, click on the button below to reset your password. </p>
+            <a href="{reset_link}" class="btn">Reset Password</a>
+            <p>If you didn't request this, please ignore this email.</p>
+            <p class="footer">This link is valid for only 5 minutes.</p>
+        </div>
+    </body>
+    </html>
+    """
+        message = MessageSchema(
+            subject="Forgot Password Request for Whiplano",
+            recipients=[email],
+            body=html,
+            subtype=MessageType.html
+        )
+        fm = FastMail(conf)
+        await fm.send_message(message)
+        logger.info(f"Send password reset link to {email}")
+
+@router.get("/verify_reset_token",tags=["Authentication"],summary="Returns True if the given token is valid",description="Allows the frontend to verify if a forgot password link is valid or expired.")
+async def verify_token(token:str):
+    email = verify_reset_token
+    if email:
+        return True
+    return False
+
+@router.get("/reset_password",tags=["Authentication"],summary="Allows the user to reset their password",description="Takes in a JWT token, checks if it's valid, if yes, allows the user to set a password. ")
+async def reset_password(token:str,password:str):
+    email = verify_reset_token(token)
+    try:
+        if email: 
+            user = await database_client.get_user_by_email(email)
+            user_id = user['user_id']
+            password_hash = hash_password(password)
+            await database_client.update_user(user_id,password_hash=password_hash)
+            logger.info(f"Updated password for {email}")
+            return True
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(status_code=400,detail=(str(e)))
+    return

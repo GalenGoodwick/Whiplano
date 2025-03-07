@@ -1,7 +1,7 @@
 
 from pydantic import BaseModel,Field,EmailStr
 from datetime import datetime, timedelta,date
-
+from typing import Optional
 
 class SignupRequest(BaseModel):
     email: EmailStr
@@ -47,22 +47,30 @@ class Metadata(BaseModel):
     description: str
 
 class User(BaseModel):
-    username: str
+    username: Optional[str] = None
     email: str
-    id : str
-    bio :str
-    telegram :str
-    pfp_uri : str
-    twitter : str
+    id: str
+    bio: Optional[str] = None
+    telegram: Optional[str] = None
+    pfp_uri: Optional[str] = None
+    twitter: Optional[str] = None
     artisan: bool
-    creator:bool
-    admin:bool
-    verified:bool
+    creator: bool
+    admin: bool
+    verified: bool
 
+class LoginToken(BaseModel):
+    access_token: str
+    token_type: str
+    info : dict
 
 class Token(BaseModel):
     access_token: str
+    token_type: str    
+class SignupToken(BaseModel):
+    access_token: str
     token_type: str
-
+    is_verified:bool
+    has_onboarded:bool
 class TokenData(BaseModel):
     username: str
