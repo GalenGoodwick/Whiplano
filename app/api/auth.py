@@ -273,7 +273,7 @@ async def google_callback(request: Request):
     for key, value in user_info_dict.items():
         if isinstance(value, datetime):
             user_info_dict[key] = value.isoformat()
-    return {"access_token": access_token, "token_type": "bearer",info:user_info_dict}
+    return {"access_token": access_token, "token_type": "bearer","info":user_info_dict}
 
 
 @router.get("/forgot_password",tags=["Authentication"],summary="Sends a link to the email to change the password",description="Takes in a email and sends a forgot password link to that email, allowing the user to change their password if wanted. ")

@@ -27,7 +27,9 @@ class DatabaseManager:
             password=os.getenv("DATABASE_PASSWORD"),
             database=os.getenv("DATABASE_NAME"),
             minsize=5,
-            maxsize=10
+            maxsize=10,
+            pool_recycle=30, 
+            echo=True
         )
         logger.info("Initialized Connection Pool successfully. ")
     async def get_connection(self):
