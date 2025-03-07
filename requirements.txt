@@ -58,3 +58,5 @@ urllib3==2.3.0
 uuid==1.30
 uvicorn==0.34.0
 yarl==1.18.3
+gunicorn==23.0.0
+packaging==24.2
