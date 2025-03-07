@@ -62,3 +62,8 @@ async def root():
 @app.on_event("startup")
 async def startup_event():
     await database_client.init_pool()
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.error(f"Unhandled exception: {exc}")
+    return {'status_code':500, 'content':{"detail": "Internal Server Error"}}
