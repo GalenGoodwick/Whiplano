@@ -135,13 +135,10 @@ async def send_otp(background_tasks: BackgroundTasks,current_user: User = Depend
     otp = f"{secrets.randbelow(999999):06d}"  
     expires_at = datetime.utcnow() + timedelta(minutes=5)  # OTP expires in 5 minutes
     email = current_user.email
-    
-    
     await database_client.store_otp(current_user.email,expires_at, otp)
-    
     background_tasks.add_task(send_email_otp,email)
-
     return {"message":"OTP sent successfully"}
+
 async def send_email_otp(email):
     try:
         fm = FastMail(conf)
@@ -198,7 +195,7 @@ async def send_email_otp(email):
         )
         await fm.send_message(message)
     except Exception as e:
-        logger.error(f"Email sending failed.")
+        logger.error(f"Email sending failed. {e}")
 @router.post("/recieve_otp",dependencies= [Depends(get_current_user)],tags=["Authentication"],summary="Allows the user to check their otp",description="Recieves an otp from the user, checks it with the one stored in the database, if yes verifies the user")
 async def recieve_otp(entered_otp:int, current_user: User = Depends(get_current_user),):
     try:
