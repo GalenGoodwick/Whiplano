@@ -82,7 +82,10 @@ async def login(email: str = Form(...), password: str = Form(...)):
     #await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
     user_info_dict = user.model_dump()
-    user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
+    user_info_dict['has_onboarded']= False
+    if user_info_dict['first_name'] and user_info_dict['last_name'] and user_info_dict['username']:
+        user_info_dict['has_onboarded']= True
+
     for key, value in user_info_dict.items():
         if isinstance(value, datetime):
             user_info_dict[key] = value.isoformat()
@@ -282,7 +285,9 @@ async def google_callback(request: Request):
     await database_client.login_user(email=idinfo['email'])
     logging.info(f"Authenticated user {idinfo['email']} using Google OAuth2")
     user_info_dict = user.model_dump()
-    user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
+    user_info_dict['has_onboarded']= False
+    if user_info_dict['first_name'] and user_info_dict['last_name'] and user_info_dict['username']:
+        user_info_dict['has_onboarded']= True
     for key, value in user_info_dict.items():
         if isinstance(value, datetime):
             user_info_dict[key] = value.isoformat()

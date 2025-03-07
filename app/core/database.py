@@ -1082,33 +1082,6 @@ class DatabaseManager:
                     logger.error(f"Error storing user details for {email}: {e}")
                     raise HTTPException(status_code=500, detail="Error storing user details")
                 
-    async def has_onboarded(self,email):
-        async with await self.get_connection() as connection:
-            async with connection.cursor() as cursor:
-                try:
-                    check_user_query = "SELECT email FROM users WHERE email = %s"
-                    await cursor.execute(check_user_query, (email,))
-                    user_data = await cursor.fetchone()
 
-                    if not user_data:
-                        logger.info(f"User {email} does not exist.")
-                        raise HTTPException(status_code=404, detail="User not found")
-                    
-                    query = "SELECT * FROM USERS WHERE EMAIL = %s"
-                    await cursor.execute(query,(email,))
-                    result = await cursor.fetchone()
-                    if result:
-                        columns = [column[0] for column in cursor.description]
-                        user = dict(zip(columns, result))
-                    
-                    print(result)
-                    if user['first_name'] and user['last_name'] and user['username']:
-                        return True
-                    return False
-
-                except Exception as e:
-                        await connection.rollback()
-                        logger.error(f"Error fetching user details for {email}: {e}")
-                        raise HTTPException(status_code=500, detail="Error fetching user details")
 
 database_client = DatabaseManager() 
