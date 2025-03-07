@@ -26,7 +26,7 @@ class DatabaseManager:
             user=os.getenv("DATABASE_USERNAME"),
             password=os.getenv("DATABASE_PASSWORD"),
             database=os.getenv("DATABASE_NAME"),
-            minsize=1,
+            minsize=5,
             maxsize=10
         )
         logger.info("Initialized Connection Pool successfully. ")
