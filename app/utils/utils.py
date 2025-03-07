@@ -148,7 +148,9 @@ async def authenticate_user(email: str, password: str) -> Union[User, None]:
                              bio=user["bio"],
                              telegram=user["telegram"],
                              twitter=user["twitter"],
-                             admin=user["admin"]
+                             admin=user["admin"],
+                             first_name = user['first_name'],
+                             last_name = user['last_name']
                              )
         return user_instance
     return None
