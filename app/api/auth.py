@@ -5,6 +5,7 @@ import random
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile, status,Request , BackgroundTasks
 from fastapi.responses import RedirectResponse
 from datetime import datetime, timedelta
+import secrets
 from app.utils.utils import hash_password, get_current_user, create_auth_token,authenticate_user,create_reset_token,verify_reset_token
 from app.utils.utils import ACCESS_TOKEN_EXPIRE_MINUTES,SERVER_URL
 from app.core.database import database_client
@@ -73,13 +74,18 @@ async def login(email: str = Form(...), password: str = Form(...)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
     access_token = create_auth_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
-    await database_client.login_user(email=user.email)
+    
+    #await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
     user_info_dict = user.model_dump()
-    user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
+    user_info_dict['has_onboarded']= False
+    if user_info_dict['first_name'] and user_info_dict['last_name'] and user_info_dict['username']:
+        user_info_dict['has_onboarded']= True
+
     for key, value in user_info_dict.items():
         if isinstance(value, datetime):
             user_info_dict[key] = value.isoformat()
@@ -130,64 +136,74 @@ async def signup(user: SignupRequest):
     return {"access_token": access_token, "token_type": "bearer","is_verified":False,"has_onboarded":False}
 
 @router.get("/send_otp",dependencies = [Depends(get_current_user)],tags=["Authentication"], summary="Sends an OTP to the email. ", description="Sends an OTP to the email. ")
-async def send_otp(current_user: User = Depends(get_current_user)):
-    otp = str(random.randint(100000, 999999))
-    expires_at = datetime.utcnow() + timedelta(minutes=5)  # OTP expires in 5 minutes
+async def send_otp(background_tasks: BackgroundTasks,current_user: User = Depends(get_current_user)):
+    otp = f"{secrets.randbelow(999999):06d}"  
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
     email = current_user.email
-    html = f"""
-<html>
-<head>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            padding: 20px;
-        }}
-        .container {{
-            max-width: 500px;
-            margin: auto;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            text-align: left;
-        }}
-        .otp {{
-            font-size: 24px;
-            font-weight: bold;
-            color: #2d89ef;
-            margin: 10px 0;
-        }}
-        .footer {{
-            margin-top: 20px;
-            font-size: 14px;
-            color: #555;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Email Verification Code</h2>
-        <p>Hello,</p>
-        <p>Your One-Time Password (OTP) for email verification on <strong>Whiplano</strong> is:</p>
-        <p class="otp">{otp}</p>
-        <p>This OTP is valid for <strong>5 minutes</strong>. Please do not share it with anyone.</p>
-        <p>If you did not request this, please ignore this email.</p>
-        <p class="footer">Thank you,<br>Whiplano Team</p>
-    </div>
-    <br><br><br> 
-</body>
-</html>
-"""
-    message = MessageSchema(
-        subject="Your One-Time Password (OTP) for Email Verification",
-        recipients=[email],
-        body=html,
-        subtype=MessageType.html
-    )
-    fm = FastMail(conf)
     await database_client.store_otp(current_user.email,expires_at, otp)
-    await fm.send_message(message)
+    background_tasks.add_task(send_email_otp,email,otp)
+    return {"message":"OTP sent successfully"}
+
+async def send_email_otp(email,otp):
+    try:
+        fm = FastMail(conf)
+  # OTP expires in 5 minutes
+        html = f"""
+    <html>
+    <head>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                padding: 20px;
+            }}
+            .container {{
+                max-width: 500px;
+                margin: auto;
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                text-align: left;
+            }}
+            .otp {{
+                font-size: 24px;
+                font-weight: bold;
+                color: #2d89ef;
+                margin: 10px 0;
+            }}
+            .footer {{
+                margin-top: 20px;
+                font-size: 14px;
+                color: #555;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Email Verification Code</h2>
+            <p>Hello,</p>
+            <p>Your One-Time Password (OTP) for email verification on <strong>Whiplano</strong> is:</p>
+            <p class="otp">{otp}</p>
+            <p>This OTP is valid for <strong>5 minutes</strong>. Please do not share it with anyone.</p>
+            <p>If you did not request this, please ignore this email.</p>
+            <p class="footer">Thank you,<br>Whiplano Team</p>
+        </div>
+        <br><br><br> 
+    </body>
+    </html>
+    """
+        message = MessageSchema(
+            subject="Your One-Time Password (OTP) for Email Verification",
+            recipients=[email],
+            body=html,
+            subtype=MessageType.html
+        )
+        
+        await fm.send_message(message)
+    except Exception as e:
+        logger.error(f"Email sending failed. {e}")
+
 @router.post("/recieve_otp",dependencies= [Depends(get_current_user)],tags=["Authentication"],summary="Allows the user to check their otp",description="Recieves an otp from the user, checks it with the one stored in the database, if yes verifies the user")
 async def recieve_otp(entered_otp:int, current_user: User = Depends(get_current_user),):
     try:
@@ -268,8 +284,10 @@ async def google_callback(request: Request):
     )
     await database_client.login_user(email=idinfo['email'])
     logging.info(f"Authenticated user {idinfo['email']} using Google OAuth2")
-    user_info_dict = user.model_dump()
-    user_info_dict['has_onboarded'] = await database_client.has_onboarded(user.email)
+    user_info_dict = user
+    user_info_dict['has_onboarded']= False
+    if user_info_dict['first_name'] and user_info_dict['last_name'] and user_info_dict['username']:
+        user_info_dict['has_onboarded']= True
     for key, value in user_info_dict.items():
         if isinstance(value, datetime):
             user_info_dict[key] = value.isoformat()

@@ -58,6 +58,8 @@ class User(BaseModel):
     creator: bool
     admin: bool
     verified: bool
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 class LoginToken(BaseModel):
     access_token: str
