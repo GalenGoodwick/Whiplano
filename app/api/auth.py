@@ -74,11 +74,11 @@ async def login(email: str = Form(...), password: str = Form(...)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    logger.debug("Before creating token")
+    
     access_token = create_auth_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
-    logger.debug("After creating token")
+    
     #await database_client.login_user(email=user.email)
     logger.info(f"User {user.email} succesfully authenticated")
     user_info_dict = user.model_dump()
@@ -284,7 +284,7 @@ async def google_callback(request: Request):
     )
     await database_client.login_user(email=idinfo['email'])
     logging.info(f"Authenticated user {idinfo['email']} using Google OAuth2")
-    user_info_dict = user.model_dump()
+    user_info_dict = user
     user_info_dict['has_onboarded']= False
     if user_info_dict['first_name'] and user_info_dict['last_name'] and user_info_dict['username']:
         user_info_dict['has_onboarded']= True
