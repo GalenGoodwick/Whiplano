@@ -48,3 +48,9 @@ async def admin_approve(id: int):
     #token_account_address = await transaction_module.get_token_account_address(Pubkey.from_string(mint_address))
     await database_client.approve_trs_creation_request(id,trs_creation_data['creator_email'],number,"e",trs_creation_data['title'],"e")
     return {"message":"TRS Succesfully created. "}
+
+
+@router.post("/admin/reset_db",dependencies=[Depends(get_current_user)],tags=["Admin"],description="Adds sample data into the database")
+async def populate_database():
+    await database_client.reset_database()
+    return "Reset the database. "

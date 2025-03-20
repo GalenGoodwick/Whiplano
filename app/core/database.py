@@ -1283,7 +1283,40 @@ class DatabaseManager:
         finally:
             if connection:
                 await self.pool.release(connection)
-                      
+    
+    
+    async def reset_database(self):
+        connection = None
+        try:
+            connection = await self.get_connection()
+            async with connection.cursor() as cursor:
+                await cursor.execute("SET FOREIGN_KEY_CHECKS=0;")
+                with open("backup.txt", "r", encoding="utf-8") as f:  # Open text file
+                    statement = ""
+                    for line in f:
+                        line = line.strip()
 
+                        # Ignore comments and empty lines
+                        if not line or line.startswith("--") or line.startswith("/*"):
+                            continue
+
+                        statement += line + " "  # Append to current SQL statement
+
+                        if line.endswith(";"):  # Execute when statement is complete
+                            await cursor.execute(statement)
+                            statement = ""  # Reset for next statement
+
+            await connection.commit()
+            logger.info("✅ Database restored successfully!")
+            return {"message":"✅ Database restored successfully!"}
+                
+
+        except Exception as e:
+            await connection.rollback()
+            logger.error(f"❌ Error restoring database: {e}")
+            raise HTTPException(status_code=500, detail="Error restoring database")
+        finally:
+            if connection:
+                await self.pool.release(connection)
 
 database_client = DatabaseManager() 

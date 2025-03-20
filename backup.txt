@@ -1,0 +1,329 @@
+-- MySQL dump 10.13  Distrib 8.0.40, for Win64 (x86_64)
+--
+-- Host: cvktne7b4wbj4ks1.chr7pe7iynqr.eu-west-1.rds.amazonaws.com    Database: k8ylxcd5jzsodvun
+-- ------------------------------------------------------
+-- Server version	8.0.35
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+-- SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
+-- SET @@SESSION.SQL_LOG_BIN= 0;
+
+--
+-- GTID state at the beginning of the backup 
+--
+
+-- SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '';
+
+--
+-- Table structure for table `collection_data`
+--
+
+
+DROP TABLE IF EXISTS `collection_data`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `collection_data` (
+  `name` varchar(255) NOT NULL,
+  `creator` varchar(255) NOT NULL,
+  `description` text,
+  `number` int DEFAULT NULL,
+  `image_uri` varchar(500) DEFAULT NULL,
+  PRIMARY KEY (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `collection_data`
+--
+
+LOCK TABLES `collection_data` WRITE;
+/*!40000 ALTER TABLE `collection_data` DISABLE KEYS */;
+/*!40000 ALTER TABLE `collection_data` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `collections`
+--
+
+DROP TABLE IF EXISTS `collections`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `collections` (
+  `trs_id` varchar(255) NOT NULL,
+  `collection_name` varchar(255) NOT NULL,
+  `mint_address` varchar(255) NOT NULL,
+  `token_account_address` varchar(255) DEFAULT NULL,
+  `creator_id` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`trs_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `collections`
+--
+
+LOCK TABLES `collections` WRITE;
+/*!40000 ALTER TABLE `collections` DISABLE KEYS */;
+/*!40000 ALTER TABLE `collections` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `email_otps`
+--
+
+DROP TABLE IF EXISTS `email_otps`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_otps` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `email` varchar(255) NOT NULL,
+  `otp` varchar(6) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `email_otps`
+--
+
+LOCK TABLES `email_otps` WRITE;
+/*!40000 ALTER TABLE `email_otps` DISABLE KEYS */;
+INSERT INTO `email_otps` VALUES (1,'danielvincent1718@gmail.com','435882','2025-03-07 09:25:17','2025-03-06 14:42:19'),(2,'husamiya123@gmail.com','819407','2025-03-06 15:01:23','2025-03-06 14:56:23'),(3,'danielvincent17181718@gmail.com','690507','2025-03-07 09:28:43','2025-03-07 09:23:32');
+/*!40000 ALTER TABLE `email_otps` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `marketplace`
+--
+
+DROP TABLE IF EXISTS `marketplace`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `marketplace` (
+  `trs_id` varchar(255) NOT NULL,
+  `collection_name` varchar(255) NOT NULL,
+  `order_type` enum('buy','sell') NOT NULL,
+  `buyer_seller_id` varchar(255) NOT NULL,
+  `bid_price` decimal(10,2) NOT NULL,
+  PRIMARY KEY (`trs_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `marketplace`
+--
+
+LOCK TABLES `marketplace` WRITE;
+/*!40000 ALTER TABLE `marketplace` DISABLE KEYS */;
+/*!40000 ALTER TABLE `marketplace` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `paypal_transactions`
+--
+
+DROP TABLE IF EXISTS `paypal_transactions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `paypal_transactions` (
+  `transaction_id` varchar(255) NOT NULL,
+  `buyer_id` varchar(255) NOT NULL,
+  `seller_id` varchar(255) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `transaction_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('created','executed','confirmed') DEFAULT 'created',
+  PRIMARY KEY (`transaction_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `paypal_transactions`
+--
+
+LOCK TABLES `paypal_transactions` WRITE;
+/*!40000 ALTER TABLE `paypal_transactions` DISABLE KEYS */;
+/*!40000 ALTER TABLE `paypal_transactions` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `trades`
+--
+
+DROP TABLE IF EXISTS `trades`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `trades` (
+  `trade_id` varchar(255) NOT NULL,
+  `buyer_id` varchar(255) NOT NULL,
+  `seller_id` varchar(255) NOT NULL,
+  `trs_id` varchar(255) NOT NULL,
+  `status` enum('initiated','completed') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `trades`
+--
+
+LOCK TABLES `trades` WRITE;
+/*!40000 ALTER TABLE `trades` DISABLE KEYS */;
+/*!40000 ALTER TABLE `trades` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `transactions`
+--
+
+DROP TABLE IF EXISTS `transactions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `transactions` (
+  `transaction_number` varchar(255) NOT NULL,
+  `collection_name` varchar(255) NOT NULL,
+  `buyer_id` varchar(255) NOT NULL,
+  `seller_id` varchar(255) NOT NULL,
+  `transaction_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `cost` decimal(10,2) NOT NULL,
+  `number` int NOT NULL,
+  `status` enum('initiated','approved','finished') DEFAULT 'initiated',
+  `buyer_transaction_id` varchar(255) NOT NULL,
+  PRIMARY KEY (`transaction_number`),
+  KEY `fk_buyer_id` (`buyer_id`),
+  KEY `fk_seller_id` (`seller_id`),
+  CONSTRAINT `fk_buyer_id` FOREIGN KEY (`buyer_id`) REFERENCES `users` (`user_id`),
+  CONSTRAINT `fk_seller_id` FOREIGN KEY (`seller_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `transactions`
+--
+
+LOCK TABLES `transactions` WRITE;
+/*!40000 ALTER TABLE `transactions` DISABLE KEYS */;
+/*!40000 ALTER TABLE `transactions` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `trs`
+--
+
+DROP TABLE IF EXISTS `trs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `trs` (
+  `user_id` varchar(255) DEFAULT NULL,
+  `trs_id` varchar(255) NOT NULL,
+  `collection_name` varchar(255) DEFAULT NULL,
+  `acquired_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `creator` varchar(255) DEFAULT NULL,
+  `artisan` tinyint(1) DEFAULT '0',
+  `marketplace` tinyint(1) DEFAULT '0',
+  `in_trade` tinyint DEFAULT '0',
+  PRIMARY KEY (`trs_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `trs`
+--
+
+LOCK TABLES `trs` WRITE;
+/*!40000 ALTER TABLE `trs` DISABLE KEYS */;
+/*!40000 ALTER TABLE `trs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `trs_creation_requests`
+--
+
+DROP TABLE IF EXISTS `trs_creation_requests`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `trs_creation_requests` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `model_name` varchar(255) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `creator_email` varchar(255) NOT NULL,
+  `status` enum('pending','approved') NOT NULL DEFAULT 'pending',
+  `file_url_header` varchar(255) NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `trs_creation_requests`
+--
+
+LOCK TABLES `trs_creation_requests` WRITE;
+/*!40000 ALTER TABLE `trs_creation_requests` DISABLE KEYS */;
+/*!40000 ALTER TABLE `trs_creation_requests` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+  `user_id` varchar(255) NOT NULL,
+  `username` varchar(50) DEFAULT NULL,
+  `email` varchar(100) NOT NULL,
+  `password_hash` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_login` timestamp NULL DEFAULT NULL,
+  `verified` tinyint(1) DEFAULT '0',
+  `role` enum('user','admin') DEFAULT 'user',
+  `kyc` tinyint(1) DEFAULT '0',
+  `artisan` tinyint(1) DEFAULT '0',
+  `creator` tinyint(1) DEFAULT '0',
+  `pfp_uri` text,
+  `bio` text,
+  `telegram` varchar(100) DEFAULT NULL,
+  `twitter` varchar(100) DEFAULT NULL,
+  `first_name` varchar(100) DEFAULT NULL,
+  `last_name` varchar(100) DEFAULT NULL,
+  `admin` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`user_id`),
+  UNIQUE KEY `email` (`email`),
+  KEY `idx_users_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `users`
+--
+
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+INSERT INTO `users` VALUES ('0df66f7e-fd9e-4968-b5e9-361f79d55357','Shawaaaan','Shawn@gmail.com','$2b$12$efqmeFRv31OXabrCx3orG./o7SPNpyS9Q3gTgM3yV32szSszPG2ui','2025-02-12 10:31:48','2025-03-06 14:06:29',0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('13f9d6c4-bb7d-4d17-878a-97d7fe16a3a0',NULL,'dadda18@gmail.com','$2b$12$aUI18gvMBTvN3NHruXi8NOWR7weu.yTaRZFXkHRK6gAxWgHH4POAO','2025-03-06 14:08:57',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('1eb93fa4-710b-4cd3-8a85-d8618affccbe','David Anderson','davidanderson@email.com','$2b$12$QT3UVQ4rKF2yOcMYZoiiO.U9u29QUwQBjc6s3zzn88BoFJx4sbX0y','2025-02-12 10:55:25',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('2231d194-f911-4f59-9839-7d7fe4a6f1ca',NULL,'dadda1a8@gmail.com','$2b$12$rMUtIXcidIB97QxrVA/pPulml343jrvaDkDYoAO8nftUcw537GmWa','2025-03-06 14:11:08',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('3723c508-b748-4b08-8958-ffa533449d6a','Alex Johnson','alexjohnson@email.com','$2b$12$sPUi2TBRiDIyU7dGObQf9.o1u8aTFpikHGurExkCsumI/l4sJtTeu','2025-02-12 10:39:38',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('5714a8f7-9dd6-44fb-9d5e-9dbee7667281','sarah_williams','sarahwilliams@email.com','$2b$12$yGH.EHr2opDI21S0Fx1NF.z.8fif3SwCtY74VkrnBCSBBRGp1xOF2','2025-02-12 10:42:21',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('5fe179a7-ce92-4300-805e-49c63a152b03','Sophia White','sophiawhite@email.com','$2b$12$CXNG9OI0aURZV9pcrOfZD.TrTn7qFc/9KuGhlM5RZncMxu32QW6MC','2025-02-12 11:00:06',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('743018f0-27fa-4700-9e2e-167d9c945a65',NULL,'danielvincent17181718@gmail.com','$2b$12$/ipWums3qZ63ndnKC6LNw.hz5dhzkMA90H9KLTBFFxVe8H9TThqWu','2025-03-07 07:10:20','2025-03-07 10:12:12',0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('87d098df-5d93-444d-9dc5-d9a5de03f51b',NULL,'imrankhuzema@gmail.com','$2b$12$Zis34HzW/fgl2MOJq40YpOO8avGjua5f.1vY8rIS7WDXRuTz.EL/2','2025-03-06 08:48:27',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('8aa338ed-bf03-455c-b572-1c9ba6c8f554','Daniel Wilson','danielwilson@email.com','$2b$12$LyWLzKkU8yCaoXSz6sdqPORGsNsyA12LmSeH1jEQuLiMUyC3H7oqi','2025-02-12 10:47:48',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('932b4326-4815-4de9-9778-b3e0fb82abf0','Emily Davis','emilydavis@email.com','$2b$12$2.dHxu/W3FJE2t1be3XYSuFG/od.j5ayGeyhwM0vDtUiQ98gGeRqi','2025-02-12 10:46:38',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('ab305d7a-47f1-449c-9fbd-11218d2a1ab0',NULL,'husamiya123@gmail.com','$2b$12$HKfrUpXNe4r/Qpe3HBwTo.966YwF6vIwx3j/o.SuLzFeK.5R7g7iW','2025-03-05 18:55:37','2025-03-07 06:21:10',0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('ba397999-f924-4b07-b066-998a8ba48278','Matthew Jackson','matthewjackson@email.com','$2b$12$Ou2Ke/z6AH5BzZ/v..qztexoywqbEevMGqROau0I6xlp4f7LXytDW','2025-02-12 10:58:16','2025-02-12 11:00:57',0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('c1451396-525a-4cb4-8024-c41505be6738','Olivia Thomas','oliviathomas@email.com','$2b$12$xGz2p8ZaPoq9bBINi8DFKe164929lQiGlL9u9vP7gAtpHmHo4D/Fm','2025-02-12 10:56:19',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('ce8dd9b2-5d87-46de-a440-d77577b784b2',NULL,'davidbeckham@email.com','$2b$12$eIq36s3214kAa5MSrDVgUeGD/ltkJNMiyVDAEve8znbNcq29x5UWy','2025-03-04 16:38:27',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('de813e50-8029-44d2-9fae-401281200483',NULL,'danielvincent1718@gmail.com','$2b$12$oBYs4Yns88QpYWeD5FrNUeziVz0MtXnBtcFcD2wIu28S3r1fFbTtu','2025-03-06 14:24:24','2025-03-08 13:39:32',1,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('e89283d1-fe2c-491b-948d-331b036c394b','Michael Brown','michaelbrown@email.com','$2b$12$VLK6xZiX6Wkqajo1uNJ/a.KngLC0613leJwpmnXhBqJYpOJ5jPmgm','2025-02-12 10:43:24',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0),('fe48e621-6c66-4606-a264-1b67d87f5ae7','Jessica Martinez','jessicamartinez@email.com','$2b$12$kVH19djNgcIpI.YQTbwz0.XjFWYSr5W7TkPZi9uAasn8FnYz/5rly','2025-02-12 10:52:00',NULL,0,'user',0,0,0,NULL,NULL,NULL,NULL,NULL,NULL,0);
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+-- SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2025-03-14 11:44:57
