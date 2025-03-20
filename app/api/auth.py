@@ -199,8 +199,9 @@ async def send_email_otp(email,otp):
             body=html,
             subtype=MessageType.html
         )
-        
+        logger.info(f"OTP prepared for {email}")
         await fm.send_message(message)
+        logger.info(f"OTP sent for {email}")
     except Exception as e:
         logger.error(f"Email sending failed. {e}")
 
