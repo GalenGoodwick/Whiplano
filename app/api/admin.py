@@ -44,7 +44,14 @@ async def admin_approve(id: int):
     exist = await database_client.check_collection_exists(trs_creation_data['title'])
     if exist: 
         raise HTTPException(status_code= 409, detail = "Collection already exists.")   
-    #mint_address = await mint.mint(trs_creation_data['title'],trs_creation_data['description'],number,trs_creation_data['creator_email'])
-    #token_account_address = await transaction_module.get_token_account_address(Pubkey.from_string(mint_address))
+    
+    '''  
+    OLD CODE
+    mint_address = await mint.mint(trs_creation_data['title'],trs_creation_data['description'],number,trs_creation_data['creator_email'])
+    token_account_address = await transaction_module.get_token_account_address(Pubkey.from_string(mint_address))
+    '''
+
+    '''
+    Insert code to send data to blockchain api'''
     await database_client.approve_trs_creation_request(id,trs_creation_data['creator_email'],number,"e",trs_creation_data['title'],"e")
     return {"message":"TRS Succesfully created. "}
