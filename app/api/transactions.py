@@ -10,14 +10,15 @@ from decimal import Decimal
 from app.utils.logging_config import logging_config  # Import the configuration file
 import logging.config
 logging.config.dictConfig(logging_config)
+import os
 logger = logging.getLogger("transactions")
-
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables
+ROYALTY = os.getenv("ROYALTY")
+FEES= os.getenv("FEES")
 router = APIRouter()
 
 
-whiplano_id = '0000-0000-0000'
-ROYALTY  = 2.5
-FEES = 2.5
 
 @router.post('/trade/create',dependencies=[Depends(get_current_user)],tags=['Transactions'],summary="Creates a trade.",description="Creates a trade, adds it to the pending trades database, creates a paypal transaction")
 async def trade_create(data : TradeCreateData,buyer : User = Depends(get_current_user)):
