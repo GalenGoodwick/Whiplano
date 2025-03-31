@@ -1331,7 +1331,10 @@ class DatabaseManager:
                 WHERE email = %s;
                 """
                 result = await cursor.execute(query,(email))
-                logger.debug(result)
+                if result == 1:
+                    return True
+                else:
+                    return False
                 return bool(result[0])
         except Exception as e:
             await connection.rollback()
