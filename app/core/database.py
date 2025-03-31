@@ -1319,4 +1319,24 @@ class DatabaseManager:
             if connection:
                 await self.pool.release(connection)
 
+    async def has_onboarded(self,email):
+        connection = None
+        try:
+            connection = await self.get_connection()
+            async with connection.cursor() as cursor:
+                query = """
+                SELECT (first_name IS NOT NULL AND last_name IS NOT NULL 
+                        AND username IS NOT NULL AND profile_pic IS NOT NULL) AS all_fields_filled
+                FROM users
+                WHERE email = %s;
+                """
+                await cursor.execute(query,(email))
+                return bool(result[0])
+        except Exception as e:
+            await connection.rollback()
+            logger.error(f"Error fetching onboarding details: {e}")
+            raise HTTPException(status_code=500, detail="Error fetching onboarding details")
+        finally:
+            if connection:
+                await self.pool.release(connection)
 database_client = DatabaseManager() 
