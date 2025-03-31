@@ -1330,7 +1330,7 @@ class DatabaseManager:
                 FROM users
                 WHERE email = %s;
                 """
-                await cursor.execute(query,(email))
+                result = await cursor.execute(query,(email))
                 return bool(result[0])
         except Exception as e:
             await connection.rollback()
