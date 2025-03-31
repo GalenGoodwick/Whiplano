@@ -325,6 +325,8 @@ def create_reset_token(email: str):
 def verify_reset_token(token: str):
     try: 
         payload = jwt.decode(token, str(SECRET_KEY), algorithms=[ALGORITHM])
-        return payload[['sub']]
-    except:
-        None
+        
+        return payload['sub']
+    except Exception as e:
+        
+        return None
