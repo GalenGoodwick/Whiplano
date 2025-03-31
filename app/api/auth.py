@@ -383,6 +383,7 @@ async def reset_password(token:str,password:str):
     email = verify_reset_token(token)
     logger.debug("Starting reset password")
     try:
+        logger.debug(email)
         if email: 
             user = await database_client.get_user_by_email(email)
             user_id = user['user_id']
@@ -391,6 +392,7 @@ async def reset_password(token:str,password:str):
             logger.info(f"Updated password for {email}")
             
             return True
+
     except Exception as e:
         logger.error(e)
         raise HTTPException(status_code=400,detail=(str(e)))
