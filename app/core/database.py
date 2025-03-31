@@ -1326,7 +1326,7 @@ class DatabaseManager:
             async with connection.cursor() as cursor:
                 query = """
                 SELECT (first_name IS NOT NULL AND last_name IS NOT NULL 
-                        AND username IS NOT NULL AND profile_pic IS NOT NULL) AS all_fields_filled
+                        AND username IS NOT NULL AND pfp_uri IS NOT NULL) AS all_fields_filled
                 FROM users
                 WHERE email = %s;
                 """
