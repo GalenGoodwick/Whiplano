@@ -1270,7 +1270,7 @@ class DatabaseManager:
                     SET username = %s, bio = %s, twitter = %s, telegram = %s, pfp_uri = %s, first_name = %s, last_name = %s
                     WHERE email = %s
                 """
-                await cursor.execute(update_query, (username, bio, twitter, telegram, profile_pic_uri,first_name,last_name))
+                await cursor.execute(update_query, (username, bio, twitter, telegram, profile_pic_uri,first_name,last_name,email))
                 await connection.commit()
                 
                 logger.info(f"User {email} profile updated successfully.")
