@@ -138,7 +138,7 @@ async def onboard_data(
     profile_pic: UploadFile = File(...),
     current_user:User = Depends(get_current_user)
 ):
-    profile_pic_uri = upload_to_aws(profile_pic)
+    profile_pic_uri = await upload_to_aws(profile_pic)
     await database_client.store_user_details(current_user.email,first_name,last_name,username,bio,twitter,telegram,profile_pic_uri)
     return "Onboarding details succesfully added."
 

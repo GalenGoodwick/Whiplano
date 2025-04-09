@@ -916,7 +916,7 @@ class DatabaseManager:
             if connection:
                 await self.pool.release(connection)
                        
-    async def add_collection_data(self,name,creator,description,number,url_header):
+    async def add_collection_data(self,name,creator,description,number,url_header,metadata_uri):
         connection = None
         try:
             connection = await self.get_connection()
@@ -925,9 +925,9 @@ class DatabaseManager:
                 user_id = str(uuid.uuid4())
                 cid = storage.get_file_cid(f'{url_header}thumbnail.png')
                 image_uri = 'https://ipfs.filebase.io/ipfs/' + str(cid)
-                query = "INSERT INTO collection_data (name,creator, description, number, image_uri) VALUES (%s, %s, %s,%s,%s)"
+                query = "INSERT INTO collection_data (name,creator, description, number, image_uri,metadata_uri) VALUES (%s, %s, %s,%s,%s,%s)"
                 
-                values = (name,creator,description,number,image_uri)
+                values = (name,creator,description,number,image_uri,metadata_uri)
                 await cursor.execute(query, values)
                 await connection.commit()
                 logger.info(f"Collection data has been added for {name} . ")
@@ -938,8 +938,7 @@ class DatabaseManager:
         finally:
             if connection:
                 await self.pool.release(connection)
-                                   
-            
+
     async def approve_trs_creation_request(self,id,creator_email,number,mint_address,collection_name,token_account_address):
         connection = None
         try:
@@ -1050,7 +1049,7 @@ class DatabaseManager:
                 await self.pool.release(connection)
                 
 
-    async def execute_trade(self, trade_id):
+    async def execute_trade(self, trade_id, metadata_uri):
         connection = None
         try:
             connection = await self.get_connection()
@@ -1151,6 +1150,33 @@ class DatabaseManager:
                         'buyer_email':buyer_user['email'],
                         'creator_email':collection_data['creator']
                     })
+
+
+                trs_id = trs_ids
+                
+                # Step 8: Fetch collection_name from collections table using trs_id
+                fetch_collection_query = "SELECT collection_name FROM collections WHERE trs_id = %s"
+                await cursor.execute(fetch_collection_query, (trs_id,))
+                collection_result = await cursor.fetchone()
+
+                if not collection_result:
+                    logger.warning(f"No Collection Name found for trs_id: {trs_id}")
+                    return
+                
+                collection_name = collection_result[0]
+                logger.info(f"Fetched Collection Name: {collection_name} for trs_id: {trs_id}")
+
+                # Step 9: Update metadata_uri in collection_data table using collection_name
+                update_metadata_query = """
+                UPDATE collection_data 
+                SET metadata_uri = %s 
+                WHERE name = %s
+                """
+                await cursor.execute(update_metadata_query, (metadata_uri, collection_name))
+                await connection.commit()
+
+                logger.info(f"Updated metadata_uri for collection: {collection_name} to {metadata_uri}")
+
 
                 # Commit all changes to the database
                 await connection.commit()

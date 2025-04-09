@@ -1,11 +1,11 @@
+from app.core.storage import upload_to_s3
+from app.core.database import database_client
+
 async def mint(owner_email,name,number,image,description,trs_id):
-    '''
-    A function that sends an api call to the blockchain api, with the given details. 
-    '''
-
-    return
 
 
 
-async def trade(trs_id,seller,buyer,number):
+
+async def trade(trs_id,name,seller,buyer,number):
+        
     return
