@@ -1296,7 +1296,7 @@ class DatabaseManager:
                     SET username = %s, bio = %s, twitter = %s, telegram = %s, pfp_uri = %s, first_name = %s, last_name = %s
                     WHERE email = %s
                 """
-                await cursor.execute(update_query, (username, bio, twitter, telegram, profile_pic_uri,first_name,last_name))
+                await cursor.execute(update_query, (username, bio, twitter, telegram, profile_pic_uri,first_name,last_name,email))
                 await connection.commit()
                 
                 logger.info(f"User {email} profile updated successfully.")
@@ -1345,4 +1345,28 @@ class DatabaseManager:
             if connection:
                 await self.pool.release(connection)
 
+    async def has_onboarded(self,email):
+        connection = None
+        try:
+            connection = await self.get_connection()
+            async with connection.cursor() as cursor:
+                query = """
+                SELECT (first_name IS NOT NULL AND last_name IS NOT NULL 
+                        AND username IS NOT NULL AND pfp_uri IS NOT NULL) AS all_fields_filled
+                FROM users
+                WHERE email = %s;
+                """
+                result = await cursor.execute(query,(email))
+                if result == 1:
+                    return True
+                else:
+                    return False
+                return bool(result[0])
+        except Exception as e:
+            await connection.rollback()
+            logger.error(f"Error fetching onboarding details: {e}")
+            raise HTTPException(status_code=500, detail="Error fetching onboarding details")
+        finally:
+            if connection:
+                await self.pool.release(connection)
 database_client = DatabaseManager() 

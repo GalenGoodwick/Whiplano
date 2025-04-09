@@ -381,15 +381,18 @@ async def verify_token(token:str):
 @router.get("/reset_password",tags=["Authentication"],summary="Allows the user to reset their password",description="Takes in a JWT token, checks if it's valid, if yes, allows the user to set a password. ")
 async def reset_password(token:str,password:str):
     email = verify_reset_token(token)
+    logger.debug("Starting reset password")
     try:
+        logger.debug(email)
         if email: 
             user = await database_client.get_user_by_email(email)
             user_id = user['user_id']
             password_hash = hash_password(password)
             await database_client.update_user(user_id,password_hash=password_hash)
             logger.info(f"Updated password for {email}")
+            
             return True
+
     except Exception as e:
         logger.error(e)
         raise HTTPException(status_code=400,detail=(str(e)))
-    return
