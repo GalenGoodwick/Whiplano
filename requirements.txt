@@ -33,7 +33,7 @@ jmespath==1.0.1
 MarkupSafe==3.0.2
 multidict==6.1.0
 oauthlib==3.2.2
-propcache==0.3.0
+propcache==0.3.1
 pyasn1==0.6.1
 pyjwt==2.10.1
 pyasn1_modules==0.4.1
