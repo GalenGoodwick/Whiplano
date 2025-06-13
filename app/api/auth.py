@@ -34,7 +34,7 @@ logger = logging.getLogger("authentication")
 
 router = APIRouter()
 
-email_conf = conf = ConnectionConfig(
+'''email_conf = conf = ConnectionConfig(
     MAIL_USERNAME = os.getenv("GOOGLE_MAIL_ID"),
     MAIL_PASSWORD = os.getenv("GOOGLE_EMAIL_PASSWORD"),
     MAIL_FROM = os.getenv("GOOGLE_MAIL_ID"),
@@ -46,7 +46,7 @@ email_conf = conf = ConnectionConfig(
     USE_CREDENTIALS = True,
     VALIDATE_CERTS = True
 )
-
+'''
 
 @router.post("/login", response_model=LoginToken,tags=["Authentication"], summary="Logs in the User", description="Used to log in users via email/password")
 async def login(email: str = Form(...), password: str = Form(...)):
