@@ -49,6 +49,7 @@ async def wallet_get(user: User = Depends(get_current_user)):
     """
     try:
         wallet = await database_client.get_wallet_formatted(user.id)
+        logger.debug(wallet)
         final_wallet = {}
         
         for trs in wallet['trs']:

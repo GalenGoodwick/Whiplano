@@ -235,8 +235,8 @@ class DatabaseManager:
             connection = await self.get_connection()
             async with connection.cursor() as cursor:
                     
-                query = f"INSERT INTO trs (user_id,trs_id,collection_name,creator) VALUES (%s, %s,%s,%s)"
-
+                query = "INSERT INTO trs (user_id, trs_id, collection_name, creator) VALUES (%s, %s, %s, %s)"
+                logger.debug(values)
                 await cursor.executemany(query, values)
                 await connection.commit()
                 logger.info(f"Tokens added succesfully. ")
@@ -346,11 +346,14 @@ class DatabaseManager:
                 for i in range(number):
                     trs_id = uuid.uuid4().int
                     batch_values.append((str(trs_id), collection_name, str(mint_address), str(token_account_address),str(creator_id)))
-                    trs_id_values.append((creator_id,trs_id,collection_name,creator_id))
+                    trs_id_values.append((creator_id,str(trs_id),collection_name,creator_id))
+                
                 query = f"INSERT INTO collections (trs_id, collection_name, mint_address, token_account_address,creator_id) VALUES (%s, %s, %s, %s,%s)"
                 await cursor.executemany(query,batch_values)
                 await connection.commit()
-                await self.add_asset(trs_id_values)       
+               
+                await self.add_asset(trs_id_values)  
+                   
                 logger.info(f"Added {number} tokens of collection name {collection_name} to {creator_id}.")
         except Exception as e:
                 await connection.rollback()
@@ -882,7 +885,9 @@ class DatabaseManager:
                     
                 query = "SELECT * FROM trs_creation_requests WHERE status = %s"
                 await cursor.execute(query, (status,))
+                
                 result1 = await cursor.fetchall()
+                logger.debug(result1)
                 columns = [column[0] for column in cursor.description]
                 results = [dict(zip(columns, row)) for row in result1]
                 return results
@@ -905,6 +910,7 @@ class DatabaseManager:
                 query = "SELECT * FROM trs_creation_requests WHERE id = %s"
                 await cursor.execute(query, (id,))
                 results1 = await cursor.fetchall()
+                logger.debug(results1)
                 columns = [column[0] for column in cursor.description]
                 results = [dict(zip(columns, row)) for row in results1]
                 return results
@@ -959,6 +965,7 @@ class DatabaseManager:
                 logger.info(f"Finalized TRS Creation request. {id} from {creator_email}")
                 await connection.commit()
         except Exception as e:
+            print(e)
             await connection.rollback()
             logger.error(f"Error: {e}")
             raise HTTPException(status_code=400, detail=str(e))
