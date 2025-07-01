@@ -754,7 +754,7 @@ class DatabaseManager:
                 await connection.commit()
 
                 logger.info(f"User {email} added to the admin list. ")
-                return True
+                return "True"
         except Exception as e:
             await connection.rollback()
             logger.error(f"Error: {e}")
