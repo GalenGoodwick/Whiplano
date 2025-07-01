@@ -22,7 +22,8 @@ async def add_admin(email: str, dependencies = [Depends(get_current_user)]) -> s
     Returns:
     str: A success message indicating that the admin user has been added to the system.
     """
-    return await database_client.add_admin(email)
+    response = await database_client.add_admin(email)
+    return response
 
 @router.get("/admin/creation_requests",dependencies = [Depends(get_current_user)],tags=["Admin"], summary="For getting the TRS creation requests", description="Returns the list of TRS creation requests currently pending for admins to approve. ")
 async def admin_creation_requests():
