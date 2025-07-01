@@ -748,12 +748,13 @@ class DatabaseManager:
             async with connection.cursor() as cursor:
                     
                 query = "UPDATE users set role = 'admin' WHERE email = %s"
-
+                query1 = "UPDATE users set admin = 1 where email = %s"
                 await cursor.execute(query, (email,))
+                await cursor.execute(query1, (email,))
                 await connection.commit()
 
                 logger.info(f"User {email} added to the admin list. ")
-
+                return True
         except Exception as e:
             await connection.rollback()
             logger.error(f"Error: {e}")
